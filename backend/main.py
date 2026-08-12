@@ -27,6 +27,12 @@ def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 150): # chunk f
     return chunks;
 
 
+def get_embeedings(text: str):
+    response = client.models.embed_content(model="gemini-embedding-001",
+        contents=text)
+    return response.embeddings[0].values
+
+
 pdf_text_store=""
 pdf_chunks = []
 
@@ -44,6 +50,23 @@ async def upload_pdf(file: UploadFile = File(...)):
     pdf_chunks = chunk_text(text) # chunking occurs 
 
     return {"status": "success", "characters_extracted": len(text), "total pdf_chunks": len(pdf_chunks)}  
+
+@app.get("/test-embedding")
+async def test_embeddind():
+    if(not pdf_chunks):
+        return{
+            "error": "phle pdf upload kro .!"
+        }
+
+    sample_chunk = pdf_chunks[0]
+    embedding = get_embeedings(sample_chunk)
+
+    return {
+        "chunk_preview": sample_chunk[:100],
+        "embedding length": len(embedding),
+        "embedding preview": embedding[:5]
+    }
+
 
 
 @app.get("/chunks")
