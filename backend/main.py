@@ -14,7 +14,7 @@ app = FastAPI()
 
 app.add_middleware(CORSMiddleware, allow_origins="*", allow_headers="*", allow_methods="*")
 
-def chunk_text(text: string, chunk_size: int = 1000, overlap: int = 150):
+def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 150): # chunk func
     chunks = []
     start = 0;
 
@@ -22,16 +22,17 @@ def chunk_text(text: string, chunk_size: int = 1000, overlap: int = 150):
         end = start + chunk_size;
         chunk = text[start: end]
         chunks.append(chunk)
-        start += end-overlap;
+        start = end-overlap;
 
     return chunks;
 
 
 pdf_text_store=""
+pdf_chunks = []
 
 @app.post("/upload")
 async def upload_pdf(file: UploadFile = File(...)):
-    global pdf_text_store
+    global pdf_text_store, pdf_chunks
 
     # print("uplaod file is ::: ", file, file.filename)
     reader = PdfReader(file.file)
@@ -40,8 +41,17 @@ async def upload_pdf(file: UploadFile = File(...)):
         text += page.extract_text() or ""
 
     pdf_text_store = text
+    pdf_chunks = chunk_text(text) # chunking occurs 
 
-    return {"status": "success", "characters_extracted": len(text)}  
+    return {"status": "success", "characters_extracted": len(text), "total pdf_chunks": len(pdf_chunks)}  
+
+
+@app.get("/chunks")
+async def get_chunks():
+    return {
+        "total chunks are :: " : len(pdf_chunks),
+        "preview :: ":[c[:100] for c in pdf_chunks[:5]]
+    }
 
 @app.post("/ask")
 async def ask_questions(question: str = Form(...)):
@@ -50,7 +60,7 @@ async def ask_questions(question: str = Form(...)):
 
     prompt= f"""give the answer or query resolves on the basis of below documents .
 
-    Document: {pdf_text_store[:60]} 
+    Document: {pdf_text_store[:6000]} 
 
     question : {question}
      
