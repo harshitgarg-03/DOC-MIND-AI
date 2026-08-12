@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from pypdf import PdfReader
 from google import genai
 from fastapi.middleware.cors import CORSMiddleware
-
+import numpy as np
 
 load_dotenv()
 
@@ -32,13 +32,20 @@ def get_embeedings(text: str):
         contents=text)
     return response.embeddings[0].values
 
+def cosine_similarity(a, b):
+    a = np.array(a)
+    b = np.array(b)
+
+    return np.dot(a, b)/(np.linalg.norm(a)*np.linalg.norm(b))
+
 
 pdf_text_store=""
 pdf_chunks = []
+chunk_embedding = []
 
 @app.post("/upload")
 async def upload_pdf(file: UploadFile = File(...)):
-    global pdf_text_store, pdf_chunks
+    global pdf_text_store, pdf_chunks, chunk_embedding
 
     # print("uplaod file is ::: ", file, file.filename)
     reader = PdfReader(file.file)
@@ -49,7 +56,13 @@ async def upload_pdf(file: UploadFile = File(...)):
     pdf_text_store = text
     pdf_chunks = chunk_text(text) # chunking occurs 
 
-    return {"status": "success", "characters_extracted": len(text), "total pdf_chunks": len(pdf_chunks)}  
+    # for each chunk embedding occurs 
+    for c in pdf_chunks: # this part should be optimize each chunk hits api again and again 
+        emb = get_embeedings(c);
+        chunk_embedding.append(emb);
+        
+
+    return {"status": "success", "characters_extracted": len(text), "total pdf_chunks": len(pdf_chunks), "embedding created ": len(chunk_embedding)}  
 
 @app.get("/test-embedding")
 async def test_embeddind():
@@ -65,6 +78,32 @@ async def test_embeddind():
         "chunk_preview": sample_chunk[:100],
         "embedding length": len(embedding),
         "embedding preview": embedding[:5]
+    }
+
+@app.post("/find-similar")
+async def find_similar(question:str):
+    if not chunk_embedding:
+        return {
+            "error ": "phle pdf uplaod kro and then embedding func occurs "
+        }
+
+    question_embedding = get_embeedings(question)
+
+    scores = []
+
+    for i, emb, in enumerate(chunk_embedding):
+        score = cosine_similarity(question, emb);
+        scores.append((score, i));
+
+    scores.sort(reverse=True);
+    top_3 = scores[:3]
+
+    return {
+        "question": question,
+        "top matches ": [
+            {"score": float(s), "chunk preview": pdf_chunks[i][:150]}
+            for s, i in top_3
+        ]
     }
 
 
