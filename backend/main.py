@@ -14,6 +14,19 @@ app = FastAPI()
 
 app.add_middleware(CORSMiddleware, allow_origins="*", allow_headers="*", allow_methods="*")
 
+def chunk_text(text: string, chunk_size: int = 1000, overlap: int = 150):
+    chunks = []
+    start = 0;
+
+    while(start < len(text)):
+        end = start + chunk_size;
+        chunk = text[start: end]
+        chunks.append(chunk)
+        start += end-overlap;
+
+    return chunks;
+
+
 pdf_text_store=""
 
 @app.post("/upload")
@@ -37,7 +50,7 @@ async def ask_questions(question: str = Form(...)):
 
     prompt= f"""give the answer or query resolves on the basis of below documents .
 
-    Document: {pdf_text_store[:6000]} 
+    Document: {pdf_text_store[:60]} 
 
     question : {question}
      
