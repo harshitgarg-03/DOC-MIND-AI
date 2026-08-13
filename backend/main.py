@@ -81,32 +81,32 @@ async def test_embeddind():
         "embedding preview": embedding[:5]
     }
 
-@app.post("/find-similar")
-async def find_similar(question:str = Form(...)):
-    if not chunk_embedding:
-        return {
-            "error ": "phle pdf uplaod kro and then embedding func occurs "
-        }
+# @app.post("/find-similar")
+# async def find_similar(question:str = Form(...)):
+#     if not chunk_embedding:
+#         return {
+#             "error ": "phle pdf uplaod kro and then embedding func occurs "
+#         }
 
-    question_embedding = get_embeedings(question)
+#     question_embedding = get_embeedings(question)
 
-    scores = []
+#     scores = []
 
-    for i, emb, in enumerate(chunk_embedding):
-        score = cosine_similarity(question_embedding, emb);
-        scores.append((score, i));
-# /home/harshit-garg/Downloads/Harshit.pdf
-# curl -F "file=@/home/harshit-garg/Downloads/Harshit.pdf" http://localhost:8000/upload
-    scores.sort(reverse=True);
-    top_3 = scores[:3]
+#     for i, emb, in enumerate(chunk_embedding):
+#         score = cosine_similarity(question_embedding, emb);
+#         scores.append((score, i));
+# # /home/harshit-garg/Downloads/Harshit.pdf
+# # curl -F "file=@/home/harshit-garg/Downloads/Harshit.pdf" http://localhost:8000/upload
+#     scores.sort(reverse=True);
+#     top_3 = scores[:3]
 
-    return {
-        "question": question,
-        "top matches ": [
-            {"score": float(s), "chunk preview": pdf_chunks[i][:150]}
-            for s, i in top_3
-        ]
-    }
+#     return {
+#         "question": question,
+#         "top matches ": [
+#             {"score": float(s), "chunk preview": pdf_chunks[i][:150]}
+#             for s, i in top_3
+#         ]
+#     }
 
 @app.get("/chunks")
 async def get_chunks():
@@ -116,24 +116,46 @@ async def get_chunks():
     }
 
 @app.post("/ask")
-async def ask_questions(question: str = Form(...)):
-    if not pdf_text_store:
-        return {"error": "Pehle PDF upload karo"}
+async def ask_question(question: str = Form(...)):
+    if not chunk_embedding:
+        return {"error": "phle pdf upload kro.!"}
 
-    prompt= f"""give the answer or query resolves on the basis of below documents .
+    question_embedding = get_embeedings(question)
 
-    Document: {pdf_text_store[:6000]} 
+    scores = []
 
-    question : {question}
+    for i, emb in enumerate(chunk_embedding):
+        score = cosine_similarity(question_embedding, emb)
+        scores.append((score, i))
+
+    scores.sort(reverse=True)
+
+    
+
+
+
+
+
+
+# @app.post("/ask")  text se kaise dekhte h ya query krte h 
+# async def ask_questions(question: str = Form(...)):
+#     if not pdf_text_store:
+#         return {"error": "Pehle PDF upload karo"}
+
+#     prompt= f"""give the answer or query resolves on the basis of below documents .
+
+#     Document: {pdf_text_store[:6000]} 
+
+#     question : {question}
      
-       """
+#        """
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
+#     response = client.models.generate_content(
+#         model="gemini-2.5-flash",
+#         contents=prompt
+#     )
 
-    return {"answer": response.text}
+#     return {"answer": response.text}
 
 
 
