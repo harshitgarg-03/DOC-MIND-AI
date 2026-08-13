@@ -32,6 +32,7 @@ def get_embeedings(text: str):
         contents=text)
     return response.embeddings[0].values
 
+
 def cosine_similarity(a, b):
     a = np.array(a)
     b = np.array(b)
@@ -56,7 +57,7 @@ async def upload_pdf(file: UploadFile = File(...)):
     pdf_text_store = text
     pdf_chunks = chunk_text(text) # chunking occurs 
 
-    # for each chunk embedding occurs 
+    # for each chunk,  embedding occurs 
     for c in pdf_chunks: # this part should be optimize each chunk hits api again and again 
         emb = get_embeedings(c);
         chunk_embedding.append(emb);
@@ -81,7 +82,7 @@ async def test_embeddind():
     }
 
 @app.post("/find-similar")
-async def find_similar(question:str):
+async def find_similar(question:str = Form(...)):
     if not chunk_embedding:
         return {
             "error ": "phle pdf uplaod kro and then embedding func occurs "
@@ -92,9 +93,10 @@ async def find_similar(question:str):
     scores = []
 
     for i, emb, in enumerate(chunk_embedding):
-        score = cosine_similarity(question, emb);
+        score = cosine_similarity(question_embedding, emb);
         scores.append((score, i));
-
+# /home/harshit-garg/Downloads/Harshit.pdf
+# curl -F "file=@/home/harshit-garg/Downloads/Harshit.pdf" http://localhost:8000/upload
     scores.sort(reverse=True);
     top_3 = scores[:3]
 
@@ -105,8 +107,6 @@ async def find_similar(question:str):
             for s, i in top_3
         ]
     }
-
-
 
 @app.get("/chunks")
 async def get_chunks():
