@@ -11,3 +11,4 @@ google-generativeai
 google-genai
 langchain
 langchain-text-splitters
+sse-starlette
