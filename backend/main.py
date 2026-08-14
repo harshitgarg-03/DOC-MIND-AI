@@ -5,7 +5,9 @@ from pypdf import PdfReader
 from google import genai
 from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
-
+import chromadb
+from chromadb.utils import embedding_functions
+from chromadb.utils.embedding_functions import GoogleGenerativeAiEmbeddingFunction
 load_dotenv()
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
@@ -13,6 +15,15 @@ client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 app = FastAPI()
 
 app.add_middleware(CORSMiddleware, allow_origins="*", allow_headers="*", allow_methods="*")
+
+embedder = GoogleGenerativeAiEmbeddingFunction( # embedding function
+    api_key=os.getenv("GEMINI_API_KEY"),
+    model_name="gemini-embedding-001"
+)
+
+chroma_client = chromadb.PersistentClient(path="./chroma_db") # ye local disk p save krega 
+
+collection = chroma_client.get_or_create_collection(name="pdf_chunks", embedding_function=embedder)
 
 def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 150): # chunk func
     chunks = []
@@ -24,7 +35,7 @@ def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 150): # chunk f
         chunks.append(chunk)
         start = end-overlap;
 
-    return chunks;
+    return chunks
 
 
 def get_embeedings(text: str):
@@ -57,13 +68,23 @@ async def upload_pdf(file: UploadFile = File(...)):
     pdf_text_store = text
     pdf_chunks = chunk_text(text) # chunking occurs 
 
-    # for each chunk,  embedding occurs 
-    for c in pdf_chunks: # this part should be optimize each chunk hits api again and again 
-        emb = get_embeedings(c);
-        chunk_embedding.append(emb);
-        
 
-    return {"status": "success", "characters_extracted": len(text), "total pdf_chunks": len(pdf_chunks), "embedding created ": len(chunk_embedding)}  
+    existing = collection.get() # newly fresh
+    if(existing["ids"]):
+        collection.delete(ids = existing["ids"])
+
+    collection.add(
+        documents=pdf_chunks,
+        ids=[f"chunk_{i}" for i in range(len(pdf_chunks))]
+    )
+
+    # for each chunk,  embedding occurs 
+    # for c in pdf_chunks: # this part should be optimize each chunk hits api again and again 
+    #     emb = get_embeedings(c);
+    #     chunk_embedding.append(emb);
+    
+
+    return {"status": "success", "characters_extracted": len(text), "total pdf_chunks": len(pdf_chunks)}  
 
 @app.get("/test-embedding")
 async def test_embeddind():
@@ -117,39 +138,64 @@ async def get_chunks():
 
 @app.post("/ask")
 async def ask_question(question: str = Form(...)):
-    if not chunk_embedding:
-        return {"error": "phle pdf upload kro.!"}
+    if(collection.count == 0):
+        return {"error ": "phle pdf upload kro .!"}
 
-    question_embedding = get_embeedings(question)
+    results = collection.query(
+        query_texts=[question],
+        n_results=3,
+    )
 
-    scores = []
+    relevant_chunks = results["documents"][0]
+    context = "\n\n---\n\n".join(relevant_chunks)
 
-    for i, emb in enumerate(chunk_embedding):
-        score = cosine_similarity(question_embedding, emb)
-        scores.append((score, i))
+    prompt = f"""Answer the question based on the context provided below. If the answer is not available in the context, say "This information was not found in the document."
 
-    scores.sort(reverse=True)
+Context:
+{context}
 
-    top_chunk_idx = [i for _, i in scores[:3]] # here top 3 chunks idx 
-    context = "\n\n---\n\n".join(pdf_chunks[i] for i in top_chunk_idx)
-
-    prompt = f"""given the below context, just responding to user question or queery on the basis of document , if you not able to find any question then repond to user like this information not found on this document .Context: {context}  question: {question}"""
+Question:
+{question}
+"""
 
     response = client.models.generate_content(
         model="gemini-2.5-flash",
         contents=prompt
     )
-
-    return{
-        "ai answer": response.text
+    return {
+        "ai answer": response.text,
+        "chunk used ": len(relevant_chunks)
     }
 
-    
 
+# @app.post("/ask") here manula embedding 
+# async def ask_question(question: str = Form(...)):
+#     if not chunk_embedding:
+#         return {"error": "phle pdf upload kro.!"}
 
+#     question_embedding = get_embeedings(question)
 
+#     scores = []
 
+#     for i, emb in enumerate(chunk_embedding):
+#         score = cosine_similarity(question_embedding, emb)
+#         scores.append((score, i))
 
+#     scores.sort(reverse=True)
+
+#     top_chunk_idx = [i for _, i in scores[:3]] # here top 3 chunks idx 
+#     context = "\n\n---\n\n".join(pdf_chunks[i] for i in top_chunk_idx)
+
+#     prompt = f"""given the below context, just responding to user question or queery on the basis of document , if you not able to find any question then repond to user like this information not found on this document .Context: {context}  question: {question}"""
+
+#     response = client.models.generate_content(
+#         model="gemini-2.5-flash",
+#         contents=prompt
+#     )
+
+#     return{
+#         "ai answer": response.text
+#     }
 
 # @app.post("/ask")  text se kaise dekhte h ya query krte h 
 # async def ask_questions(question: str = Form(...)):
