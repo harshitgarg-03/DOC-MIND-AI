@@ -193,7 +193,7 @@ Question:
                 "chunk used ": len(relevant_chunks)
             })
         } 
-        return EventSourceResponse(event_generator())
+    return EventSourceResponse(event_generator())
 
 
 # @app.post("/ask") here manula embedding 
