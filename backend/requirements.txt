@@ -8,3 +8,4 @@ groq
 numpy
 chromadb
 google-generativeai
+google-genai

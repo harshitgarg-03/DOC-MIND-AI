@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
 import chromadb
 from chromadb.utils import embedding_functions
-from chromadb.utils.embedding_functions import GoogleGenerativeAiEmbeddingFunction
+# from chromadb.utils.embedding_functions import GoogleGenerativeAiEmbeddingFunction
 load_dotenv()
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
@@ -16,9 +16,9 @@ app = FastAPI()
 
 app.add_middleware(CORSMiddleware, allow_origins="*", allow_headers="*", allow_methods="*")
 
-embedder = GoogleGenerativeAiEmbeddingFunction( # embedding function
-    api_key=os.getenv("GEMINI_API_KEY"),
-    model_name="gemini-embedding-001"
+embedder = embedding_functions.GoogleGeminiEmbeddingFunction(
+    model_name="gemini-embedding-001",
+    task_type="RETRIEVAL_DOCUMENT"
 )
 
 chroma_client = chromadb.PersistentClient(path="./chroma_db") # ye local disk p save krega 
@@ -138,7 +138,7 @@ async def get_chunks():
 
 @app.post("/ask")
 async def ask_question(question: str = Form(...)):
-    if(collection.count == 0):
+    if(collection.count() == 0):
         return {"error ": "phle pdf upload kro .!"}
 
     results = collection.query(
