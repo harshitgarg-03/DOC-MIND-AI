@@ -8,6 +8,9 @@ import numpy as np
 import chromadb
 from chromadb.utils import embedding_functions
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from sse_starlette.sse import EventSourceResponse
+import json
+
 # from chromadb.utils.embedding_functions import GoogleGenerativeAiEmbeddingFunction
 load_dotenv()
 
@@ -43,7 +46,6 @@ def chunk_text(text: str): # chunk func
 
     return splitter.split_text(text)
     # return chunks
-
 
 def get_embeedings(text: str):
     response = client.models.embed_content(model="gemini-embedding-001",
@@ -147,7 +149,9 @@ async def get_chunks():
 async def ask_question(question: str = Form(...)):
     total_chunks = collection.count()
     if(total_chunks == 0):
-        return {"error ": "phle pdf upload kro .!"}
+        async def error_gen():
+            yield {"data": json.dumps({"error": "phle pdf upload kro .!"})} 
+        return EventSourceResponse(error_gen())
 
     Max_chunks = 7
 
@@ -169,15 +173,27 @@ Question:
 {question}
 """
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
-    return {
-        "distance values ": results["distances"][0],
-        "ai answer": response.text,
-        "chunk used ": len(relevant_chunks)
-    }
+    async def event_generator():
+
+        response = client.models.generate_content_stream(
+                model="gemini-2.5-flash",
+                contents=prompt
+            )
+
+        for chunk in response:
+            if chunk.text:
+                yield {
+                    "data": json.dumps({"token": chunk.text})
+                }
+
+        yield {
+            "data": json.dumps({
+                "done": True,
+                "distance values ": results["distances"][0],
+                "chunk used ": len(relevant_chunks)
+            })
+        } 
+        return EventSourceResponse(event_generator())
 
 
 # @app.post("/ask") here manula embedding 
