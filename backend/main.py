@@ -130,6 +130,20 @@ async def ask_question(question: str = Form(...)):
 
     scores.sort(reverse=True)
 
+    top_chunk_idx = [i for _, i in scores[:3]] # here top 3 chunks idx 
+    context = "\n\n---\n\n".join(pdf_chunks[i] for i in top_chunk_idx)
+
+    prompt = f"""given the below context, just responding to user question or queery on the basis of document , if you not able to find any question then repond to user like this information not found on this document .Context: {context}  question: {question}"""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+
+    return{
+        "ai answer": response.text
+    }
+
     
 
 
