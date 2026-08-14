@@ -9,3 +9,5 @@ numpy
 chromadb
 google-generativeai
 google-genai
+langchain
+langchain-text-splitters

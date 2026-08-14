@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
 import chromadb
 from chromadb.utils import embedding_functions
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 # from chromadb.utils.embedding_functions import GoogleGenerativeAiEmbeddingFunction
 load_dotenv()
 
@@ -25,24 +26,29 @@ chroma_client = chromadb.PersistentClient(path="./chroma_db") # ye local disk p 
 
 collection = chroma_client.get_or_create_collection(name="pdf_chunks", embedding_function=embedder)
 
-def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 150): # chunk func
-    chunks = []
-    start = 0;
+def chunk_text(text: str): # chunk func
+    # chunks = []
+    # start = 0;
 
-    while(start < len(text)):
-        end = start + chunk_size;
-        chunk = text[start: end]
-        chunks.append(chunk)
-        start = end-overlap;
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size = 1000,
+        chunk_overlap = 150,
+        separators=["\n\n", "\n", ". ", " ", ""],
+    )
+    # while(start < len(text)):
+    #     end = start + chunk_size;
+    #     chunk = text[start: end]
+    #     chunks.append(chunk)
+    #     start = end-overlap;
 
-    return chunks
+    return splitter.split_text(text)
+    # return chunks
 
 
 def get_embeedings(text: str):
     response = client.models.embed_content(model="gemini-embedding-001",
         contents=text)
     return response.embeddings[0].values
-
 
 def cosine_similarity(a, b):
     a = np.array(a)
@@ -68,6 +74,7 @@ async def upload_pdf(file: UploadFile = File(...)):
     pdf_text_store = text
     pdf_chunks = chunk_text(text) # chunking occurs 
 
+    # print(f"pdf chunks are {pdf_chunks}")
 
     existing = collection.get() # newly fresh
     if(existing["ids"]):
@@ -138,14 +145,18 @@ async def get_chunks():
 
 @app.post("/ask")
 async def ask_question(question: str = Form(...)):
-    if(collection.count() == 0):
+    total_chunks = collection.count()
+    if(total_chunks == 0):
         return {"error ": "phle pdf upload kro .!"}
 
+    Max_chunks = 7
+
+    n = min(total_chunks, Max_chunks)
     results = collection.query(
         query_texts=[question],
-        n_results=3,
+        n_results=n,
     )
-
+# mujhe yahan threshold lgana h distance k base pr 
     relevant_chunks = results["documents"][0]
     context = "\n\n---\n\n".join(relevant_chunks)
 
@@ -163,6 +174,7 @@ Question:
         contents=prompt
     )
     return {
+        "distance values ": results["distances"][0],
         "ai answer": response.text,
         "chunk used ": len(relevant_chunks)
     }
