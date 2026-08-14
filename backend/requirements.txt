@@ -7,3 +7,4 @@ google-genai
 groq
 numpy
 chromadb
+google-generativeai
