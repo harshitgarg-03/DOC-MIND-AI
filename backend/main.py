@@ -180,6 +180,7 @@ Question:
                 contents=prompt
             )
 
+        # print("response is :: ", response)
         for chunk in response:
             if chunk.text:
                 yield {
