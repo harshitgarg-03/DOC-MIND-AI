@@ -12,7 +12,6 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from sse_starlette.sse import EventSourceResponse
 import json
 
-# from chromadb.utils.embedding_functions import GoogleGenerativeAiEmbeddingFunction
 load_dotenv()
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
@@ -40,8 +39,6 @@ def chunk_text(text: str): # chunk func
     return splitter.split_text(text)
 
 
-# --- Metadata-aware chunking (page number + best-effort section title) ---
-
 def extract_pages(reader: PdfReader):
     """Har page ka text alag-alag rakhta hai, taaki page number track ho sake."""
     pages = []
@@ -50,15 +47,9 @@ def extract_pages(reader: PdfReader):
         pages.append((i + 1, page_text))  # page numbers 1-indexed
     return pages
 
-
-# Heuristic: ek line ko "heading" maante hain agar wo chhoti ho, saari caps mein ho
-# (jaise "TECHNICAL SKILLS", "EDUCATION") — ye resume/report jaisi PDFs ke liye
-# kaam karta hai. Agar PDF mein aisi headings na hon, sab kuch "General" section
-# mein chala jayega — koi crash nahi hoga, bas section metadata generic rahega.
 HEADING_PATTERN = re.compile(
     r"^[A-Z][A-Za-z\s&/\-]{2,40}$"
 )
-
 
 def split_into_sections(page_text: str):
     """Ek page ke text ko (section_title, section_text) pairs mein todta hai."""
