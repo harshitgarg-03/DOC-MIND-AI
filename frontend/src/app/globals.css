@@ -1146,6 +1146,74 @@ textarea:focus-visible {
   color: #fff;
 }
 
+/* Citations (Sources) */
+.message-citations {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.message-citations-label {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.message-citations-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.message-citation-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  padding: 4px 8px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  background: var(--surface-solid);
+  font-size: 10.5px;
+  color: var(--muted);
+  cursor: default;
+  transition: all 0.2s ease;
+}
+
+.message-citation-chip:hover {
+  border-color: var(--accent);
+  color: var(--foreground);
+}
+
+.message-citation-index {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.message-citation-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Custom Typing Indicator */
 .typing-indicator-box {
   display: flex;

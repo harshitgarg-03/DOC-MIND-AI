@@ -1,9 +1,16 @@
 export type Theme = "dark" | "light";
 
+export interface Citation {
+  chunk_index: number;
+  preview: string;
+  distance: number;
+}
+
 export interface Message {
   id: string;
   role: "user" | "assistant";
   text: string;
+  citations?: Citation[];
 }
 
 export interface PdfState {

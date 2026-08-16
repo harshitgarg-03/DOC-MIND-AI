@@ -25,6 +25,20 @@ export default function ChatMessage({ message }: Props) {
       <div className="message-content">
         {formatMessageText(message.text)}
       </div>
+
+      {!isUser && message.citations && message.citations.length > 0 && (
+        <div className="message-citations">
+          <span className="message-citations-label">Sources</span>
+          <div className="message-citations-list">
+            {message.citations.map((c) => (
+              <div key={c.chunk_index} className="message-citation-chip" title={c.preview}>
+                <span className="message-citation-index">{c.chunk_index + 1}</span>
+                <span className="message-citation-preview">{c.preview}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
