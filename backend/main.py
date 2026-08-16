@@ -1,4 +1,5 @@
 import os
+import re
 from fastapi import FastAPI, File, UploadFile, Form
 from dotenv import load_dotenv
 from pypdf import PdfReader
@@ -30,34 +31,95 @@ chroma_client = chromadb.PersistentClient(path="./chroma_db") # ye local disk p 
 collection = chroma_client.get_or_create_collection(name="pdf_chunks", embedding_function=embedder)
 
 def chunk_text(text: str): # chunk func
-    # chunks = []
-    # start = 0;
 
     splitter = RecursiveCharacterTextSplitter(
         chunk_size = 1000,
         chunk_overlap = 150,
         separators=["\n\n", "\n", ". ", " ", ""],
     )
-    # while(start < len(text)):
-    #     end = start + chunk_size;
-    #     chunk = text[start: end]
-    #     chunks.append(chunk)
-    #     start = end-overlap;
-
     return splitter.split_text(text)
-    # return chunks
 
-def get_embeedings(text: str):
-    response = client.models.embed_content(model="gemini-embedding-001",
-        contents=text)
-    return response.embeddings[0].values
 
-def cosine_similarity(a, b):
-    a = np.array(a)
-    b = np.array(b)
+# --- Metadata-aware chunking (page number + best-effort section title) ---
 
-    return np.dot(a, b)/(np.linalg.norm(a)*np.linalg.norm(b))
+def extract_pages(reader: PdfReader):
+    """Har page ka text alag-alag rakhta hai, taaki page number track ho sake."""
+    pages = []
+    for i, page in enumerate(reader.pages):
+        page_text = page.extract_text() or ""
+        pages.append((i + 1, page_text))  # page numbers 1-indexed
+    return pages
 
+
+# Heuristic: ek line ko "heading" maante hain agar wo chhoti ho, saari caps mein ho
+# (jaise "TECHNICAL SKILLS", "EDUCATION") — ye resume/report jaisi PDFs ke liye
+# kaam karta hai. Agar PDF mein aisi headings na hon, sab kuch "General" section
+# mein chala jayega — koi crash nahi hoga, bas section metadata generic rahega.
+HEADING_PATTERN = re.compile(
+    r"^[A-Z][A-Za-z\s&/\-]{2,40}$"
+)
+
+
+def split_into_sections(page_text: str):
+    """Ek page ke text ko (section_title, section_text) pairs mein todta hai."""
+    lines = page_text.split("\n")
+    sections = []
+    current_title = "General"
+    current_lines = []
+
+    for line in lines:
+        stripped = line.strip()
+        is_heading = (
+            stripped
+            and HEADING_PATTERN.match(stripped)
+            and len(stripped.split()) <= 6
+        )
+        if is_heading:
+            if current_lines:
+                sections.append((current_title, "\n".join(current_lines)))
+            current_title = stripped.title()
+            current_lines = []
+        else:
+            current_lines.append(line)
+
+    if current_lines:
+        sections.append((current_title, "\n".join(current_lines)))
+
+    return sections
+
+
+def chunk_with_metadata(pages: list[tuple[int, str]]):
+    """
+    pages: [(page_number, page_text), ...]
+    Returns: [{"text":..., "page":..., "section":...}, ...]
+
+    Chunk boundaries page ke andar hi rehte hain (koi chunk do pages ko span
+    nahi karta) — isse page number attribution hamesha sahi rehta hai.
+    """
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=800,
+        chunk_overlap=100,
+        separators=["\n\n", "\n", ". ", " ", ""],
+    )
+
+    chunks = []
+    for page_num, page_text in pages:
+        if not page_text.strip():
+            continue
+
+        for section_title, section_text in split_into_sections(page_text):
+            if not section_text.strip():
+                continue
+
+            for piece in splitter.split_text(section_text):
+                if piece.strip():
+                    chunks.append({
+                        "text": piece,
+                        "page": page_num,
+                        "section": section_title,
+                    })
+
+    return chunks
 
 pdf_text_store=""
 pdf_chunks = []
@@ -69,12 +131,14 @@ async def upload_pdf(file: UploadFile = File(...)):
 
     # print("uplaod file is ::: ", file, file.filename)
     reader = PdfReader(file.file)
-    text=""
-    for page in reader.pages:
-        text += page.extract_text() or ""
 
-    pdf_text_store = text
-    pdf_chunks = chunk_text(text) # chunking occurs 
+    # Page-wise extraction — taaki har chunk ka page number pata rahe
+    pages = extract_pages(reader)
+    pdf_text_store = "".join(text for _, text in pages)
+
+    # Metadata-aware chunking — har chunk ke saath page + section milta hai
+    chunk_data = chunk_with_metadata(pages)
+    pdf_chunks = [c["text"] for c in chunk_data]  # backward compat (/chunks endpoint)
 
     # print(f"pdf chunks are {pdf_chunks}")
 
@@ -83,67 +147,36 @@ async def upload_pdf(file: UploadFile = File(...)):
         collection.delete(ids = existing["ids"])
 
     collection.add(
-        documents=pdf_chunks,
-        ids=[f"chunk_{i}" for i in range(len(pdf_chunks))]
+        documents=[c["text"] for c in chunk_data],
+        metadatas=[{"page": c["page"], "section": c["section"]} for c in chunk_data],
+        ids=[f"chunk_{i}" for i in range(len(chunk_data))]
     )
+    return {"status": "success", "characters_extracted": len(pdf_text_store), "total pdf_chunks": len(pdf_chunks), "total_pages": len(pages)}  
 
-    # for each chunk,  embedding occurs 
-    # for c in pdf_chunks: # this part should be optimize each chunk hits api again and again 
-    #     emb = get_embeedings(c);
-    #     chunk_embedding.append(emb);
-    
+@app.get("/debug-metadata")
+async def debug_metadata():
+    """Chroma mein saved har chunk ka page + section metadata dikhata hai —
+    sirf verification ke liye, production mein iski zaroorat nahi."""
+    total = collection.count()
+    if total == 0:
+        return {"error": "phle pdf upload kro .!"}
 
-    return {"status": "success", "characters_extracted": len(text), "total pdf_chunks": len(pdf_chunks)}  
+    data = collection.get(include=["documents", "metadatas"])
 
-@app.get("/test-embedding")
-async def test_embeddind():
-    if(not pdf_chunks):
-        return{
-            "error": "phle pdf upload kro .!"
-        }
+    chunks = []
+    for id_, doc, meta in zip(data["ids"], data["documents"], data["metadatas"]):
+        chunks.append({
+            "id": id_,
+            "page": meta.get("page"),
+            "section": meta.get("section"),
+            "preview": doc[:100],
+        })
 
-    sample_chunk = pdf_chunks[0]
-    embedding = get_embeedings(sample_chunk)
+    # Page number ke hisaab se sort taaki dekhna aasan ho
+    chunks.sort(key=lambda c: c["page"])
 
-    return {
-        "chunk_preview": sample_chunk[:100],
-        "embedding length": len(embedding),
-        "embedding preview": embedding[:5]
-    }
+    return {"total_chunks": total, "chunks": chunks}
 
-# @app.post("/find-similar")
-# async def find_similar(question:str = Form(...)):
-#     if not chunk_embedding:
-#         return {
-#             "error ": "phle pdf uplaod kro and then embedding func occurs "
-#         }
-
-#     question_embedding = get_embeedings(question)
-
-#     scores = []
-
-#     for i, emb, in enumerate(chunk_embedding):
-#         score = cosine_similarity(question_embedding, emb);
-#         scores.append((score, i));
-# # /home/harshit-garg/Downloads/Harshit.pdf
-# # curl -F "file=@/home/harshit-garg/Downloads/Harshit.pdf" http://localhost:8000/upload
-#     scores.sort(reverse=True);
-#     top_3 = scores[:3]
-
-#     return {
-#         "question": question,
-#         "top matches ": [
-#             {"score": float(s), "chunk preview": pdf_chunks[i][:150]}
-#             for s, i in top_3
-#         ]
-#     }
-
-@app.get("/chunks")
-async def get_chunks():
-    return {
-        "total chunks are :: " : len(pdf_chunks),
-        "preview :: ":[c[:100] for c in pdf_chunks[:5]]
-    }
 
 @app.post("/ask")
 async def ask_question(question: str = Form(...)):
@@ -160,10 +193,10 @@ async def ask_question(question: str = Form(...)):
         query_texts=[question],
         n_results=n,
     )
+    print("RESULTS CHUNKS ARE :: ", results)
 # mujhe yahan threshold lgana h distance k base pr 
     relevant_chunks = results["documents"][0]
     context = "\n\n---\n\n".join(relevant_chunks)
-
     prompt = f"""Answer the question based on the context provided below. If the answer is not available in the context, say "This information was not found in the document."
 
 Context:
@@ -176,7 +209,7 @@ Question:
     async def event_generator():
 
         response = client.models.generate_content_stream(
-                model="gemini-2.5-flash",
+                model="gemini-3.1-flash-lite",
                 contents=prompt
             )
 
@@ -190,61 +223,9 @@ Question:
         yield {
             "data": json.dumps({
                 "done": True,
-                "distance values ": results["distances"][0],
                 "chunk used ": len(relevant_chunks)
             })
         } 
     return EventSourceResponse(event_generator())
-
-
-# @app.post("/ask") here manula embedding 
-# async def ask_question(question: str = Form(...)):
-#     if not chunk_embedding:
-#         return {"error": "phle pdf upload kro.!"}
-
-#     question_embedding = get_embeedings(question)
-
-#     scores = []
-
-#     for i, emb in enumerate(chunk_embedding):
-#         score = cosine_similarity(question_embedding, emb)
-#         scores.append((score, i))
-
-#     scores.sort(reverse=True)
-
-#     top_chunk_idx = [i for _, i in scores[:3]] # here top 3 chunks idx 
-#     context = "\n\n---\n\n".join(pdf_chunks[i] for i in top_chunk_idx)
-
-#     prompt = f"""given the below context, just responding to user question or queery on the basis of document , if you not able to find any question then repond to user like this information not found on this document .Context: {context}  question: {question}"""
-
-#     response = client.models.generate_content(
-#         model="gemini-2.5-flash",
-#         contents=prompt
-#     )
-
-#     return{
-#         "ai answer": response.text
-#     }
-
-# @app.post("/ask")  text se kaise dekhte h ya query krte h 
-# async def ask_questions(question: str = Form(...)):
-#     if not pdf_text_store:
-#         return {"error": "Pehle PDF upload karo"}
-
-#     prompt= f"""give the answer or query resolves on the basis of below documents .
-
-#     Document: {pdf_text_store[:6000]} 
-
-#     question : {question}
-     
-#        """
-
-#     response = client.models.generate_content(
-#         model="gemini-2.5-flash",
-#         contents=prompt
-#     )
-
-#     return {"answer": response.text}
-
 
 
