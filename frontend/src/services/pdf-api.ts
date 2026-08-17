@@ -50,10 +50,6 @@ export async function* Ask_Question(question: string): AsyncGenerator<StreamEven
 
     buffer += decoder.decode(value, { stream: true });
 
-    // FIX: sse-starlette default separator is "\r\n" (CRLF), so event blocks
-    // are actually joined by "\r\n\r\n" — normalize before splitting on "\n\n",
-    // otherwise the raw "\r\n\r\n" never matches "\n\n" and everything sits
-    // stuck in the buffer forever (this was the root cause of empty UI output).
     buffer = buffer.replace(/\r\n/g, "\n");
 
     const events = buffer.split("\n\n");

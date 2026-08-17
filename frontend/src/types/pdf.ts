@@ -2,8 +2,9 @@ export type Theme = "dark" | "light";
 
 export interface Citation {
   chunk_index: number;
+  page: number;
+  section: string;
   preview: string;
-  distance: number;
 }
 
 export interface Message {
