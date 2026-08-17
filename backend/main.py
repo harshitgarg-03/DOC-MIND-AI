@@ -117,7 +117,7 @@ pdf_chunks = []
 chunk_embedding = []
 
 @app.post("/upload")
-async def upload_pdf(file: UploadFile = File(...)):
+def upload_pdf(file: UploadFile = File(...)):
     global pdf_text_store, pdf_chunks, chunk_embedding
 
     # print("uplaod file is ::: ", file, file.filename)
@@ -133,8 +133,8 @@ async def upload_pdf(file: UploadFile = File(...)):
 
     # print(f"pdf chunks are {pdf_chunks}")
 
-    existing = collection.get() # newly fresh
-    if(existing["ids"]):
+    existing = collection.get(include=[]) # newly fresh
+    if(existing["ids"]): 
         collection.delete(ids = existing["ids"])
 
     collection.add(
@@ -170,7 +170,7 @@ async def debug_metadata():
 
 
 @app.post("/ask")
-async def ask_question(question: str = Form(...)):
+def ask_question(question: str = Form(...)):
     total_chunks = collection.count()
     if(total_chunks == 0):
         async def error_gen():
