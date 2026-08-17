@@ -187,6 +187,7 @@ def ask_question(question: str = Form(...)):
     print("RESULTS CHUNKS ARE :: ", results)
 # mujhe yahan threshold lgana h distance k base pr 
     relevant_chunks = results["documents"][0]
+    relevant_metadata = results["metadatas"][0]
     context = "\n\n---\n\n".join(relevant_chunks)
     prompt = f"""Answer the question based on the context provided below. If the answer is not available in the context, say "This information was not found in the document."
 
@@ -210,6 +211,20 @@ Question:
                 yield {
                     "data": json.dumps({"token": chunk.text})
                 }
+
+        citations = [
+            {
+                "chunk_index": i,
+                "page": meta.get("page"),
+                "section": meta.get("section"),
+                "preview": doc[:150].strip(),
+            }
+            for i, (doc, meta) in enumerate(zip(relevant_chunks, relevant_metadata))
+        ]
+
+        yield {
+            "data": json.dumps({"citations": citations})
+        }
 
         yield {
             "data": json.dumps({
