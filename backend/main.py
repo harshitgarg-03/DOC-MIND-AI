@@ -51,11 +51,10 @@ HEADING_PATTERN = re.compile(
     r"^[A-Z][A-Za-z\s&/\-]{2,40}$"
 )
 
-def split_into_sections(page_text: str):
+def split_into_sections(page_text: str, current_title: str = "General"):
     """Ek page ke text ko (section_title, section_text) pairs mein todta hai."""
     lines = page_text.split("\n")
     sections = []
-    current_title = "General"
     current_lines = []
 
     for line in lines:
@@ -76,7 +75,7 @@ def split_into_sections(page_text: str):
     if current_lines:
         sections.append((current_title, "\n".join(current_lines)))
 
-    return sections
+    return sections, current_title
 
 
 def chunk_with_metadata(pages: list[tuple[int, str]]):
@@ -94,11 +93,17 @@ def chunk_with_metadata(pages: list[tuple[int, str]]):
     )
 
     chunks = []
+    current_title = "General"
     for page_num, page_text in pages:
         if not page_text.strip():
             continue
 
-        for section_title, section_text in split_into_sections(page_text):
+        sections, current_title = split_into_sections(
+            page_text,
+            current_title
+        )
+
+        for section_title, section_text in sections:
             if not section_text.strip():
                 continue
 
@@ -168,7 +173,6 @@ async def debug_metadata():
 
     return {"total_chunks": total, "chunks": chunks}
 
-
 @app.post("/ask")
 def ask_question(question: str = Form(...)):
     total_chunks = collection.count()
@@ -184,7 +188,6 @@ def ask_question(question: str = Form(...)):
         query_texts=[question],
         n_results=n,
     )
-    print("RESULTS CHUNKS ARE :: ", results)
 # mujhe yahan threshold lgana h distance k base pr 
     relevant_chunks = results["documents"][0]
     relevant_metadata = results["metadatas"][0]
