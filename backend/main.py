@@ -220,7 +220,11 @@ Question:
                 "chunk_index": i,
                 "page": meta.get("page"),
                 "section": meta.get("section"),
-                "preview": doc[:150].strip(),
+                "preview": (
+                    doc[:180].strip() + "..."
+                    if len(doc) > 180
+                    else doc.strip()
+                ),
             }
             for i, (doc, meta) in enumerate(zip(relevant_chunks, relevant_metadata))
         ]
