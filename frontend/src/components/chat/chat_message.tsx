@@ -20,43 +20,22 @@ export default function ChatMessage({ message }: Props) {
 
       <div className="message-content">{formatMessageText(message.text)}</div>
 
-      {/* {!isUser && message.citations && message.citations.length > 0 && (
+      {!isUser && message.citations && message.citations.length > 0 && (
         <div className="message-citations">
           <span className="message-citations-label">Sources</span>
-          <div className="message-citations-list">
-            {message.citations.map((c) => (
-              <div key={c.chunk_index} className="message-citation-chip" title={c.preview}>
-                <span className="message-citation-index">{c.chunk_index + 1}</span>
-                <span className="message-citation-preview">{c.page} · {c.section}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )} */}
-
-      {!isUser && message.citations && message.citations.length > 0 &&(
-        <div className="message-citations">
-          <span className="message-citations-label">Sources</span>
-
           <div className="message-citations-list">
             {message.citations.map((c) => (
               <div
-                key={`${c.chunk_index}-${c.page}`}
+                key={c.chunk_index}
                 className="message-citation-chip"
                 title={c.preview}
               >
-                <div className="message-citation-header">
-                  <span className="message-citation-index">
-                    {c.chunk_index + 1}
-                  </span>
-
-                  <span className="message-citation-location">
-                    Page {c.page}
-                    {c.section && ` · ${c.section}`}
-                  </span>
-                </div>
-
-                <p className="message-citation-preview">{c.preview}</p>
+                <span className="message-citation-index">
+                  {c.chunk_index + 1}
+                </span>
+                <span className="message-citation-preview">
+                  {c.page} · {c.section}
+                </span>
               </div>
             ))}
           </div>
