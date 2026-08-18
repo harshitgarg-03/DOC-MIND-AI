@@ -25,7 +25,9 @@ export type StreamEvent =
   | { type: "token"; value: string }
   | { type: "citations"; value: import("@/types/pdf").Citation[] };
 
-export async function* Ask_Question(question: string): AsyncGenerator<StreamEvent> {
+export async function* Ask_Question(
+  question: string,
+): AsyncGenerator<StreamEvent> {
   const formdata = new FormData();
 
   formdata.append("question", question);

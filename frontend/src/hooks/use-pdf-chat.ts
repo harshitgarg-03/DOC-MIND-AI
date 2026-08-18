@@ -32,7 +32,6 @@ export function usePdfChat(pdfName?: string | null) {
       text,
     };
 
-    // Add user message
     setMessage((prev) => [...prev, userMessage]);
 
     setQuery("");
@@ -49,19 +48,13 @@ export function usePdfChat(pdfName?: string | null) {
 
     setMessage((prev) => [...prev, assistantMessage]);
 
-    // Smoothing buffer: raw tokens from the backend arrive in bursts
-    // (Gemini often sends a whole sentence in one chunk). We decouple
-    // network delivery from what's shown on screen by pushing incoming
-    // text into a queue, then draining a few characters at a fixed
-    // interval — this is what gives the steady, human-reading-speed
-    // "typewriter" feel instead of jumpy bursts.
     let queue = "";
     let displayed = "";
     let streamEnded = false;
     let streamErrored = false;
-
-    const CHARS_PER_TICK = 2; // higher = faster reveal
-    const TICK_MS = 16; // ~60fps
+    
+    const CHARS_PER_TICK = 2;
+    const TICK_MS = 16;
 
     const revealTimer = setInterval(() => {
       if (queue.length > 0) {
@@ -96,9 +89,6 @@ export function usePdfChat(pdfName?: string | null) {
       }
     }, TICK_MS);
 
-    // Citations arrive as a separate event after all tokens — store them
-    // separately and attach to the message once the reveal is complete
-    // (attaching mid-reveal would show sources before the answer finishes).
     let pendingCitations: Message["citations"] = undefined;
 
     try {
