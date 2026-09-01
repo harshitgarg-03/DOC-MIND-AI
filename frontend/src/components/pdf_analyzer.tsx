@@ -1,96 +1,64 @@
-"use client";
-
-import { useEffect, useState } from "react";
+import { usePdfChat } from "@/hooks/use-pdf-chat";
+import { usePdf } from "@/hooks/usePdf";
+import { useTheme } from "@/hooks/useTheme";
+import { Upload_Pdf } from "@/services/pdf-api";
+import { useState } from "react";
 import Header from "./pdf-analyzer/header";
+import { FileText, FolderOpen, Plus, Trash2 } from "lucide-react";
 import UploadView from "./pdf-analyzer/upload_view";
 import AnalyzerView from "./analyzer_view";
 
-import { useTheme } from "@/hooks/useTheme";
-import { usePdf } from "@/hooks/usePdf";
-import { usePdfChat } from "@/hooks/use-pdf-chat";
-
-import { Upload_Pdf } from "@/services/pdf-api";
-import { FolderOpen, FileText, Trash2, Plus } from "lucide-react";
-
 interface DocumentItem {
-  id: string;
+  id: string;    
+  documentId: string; 
   name: string;
   size: number;
   url: string;
 }
 
 export default function PdfAnalyzer() {
-  const {
-    theme,
-    isDark,
-    toggle_theme,
-  } = useTheme();
+  const { theme, isDark, toggle_theme } = useTheme();
 
   const {
-    file,
-    fileUrl,
-    fileName,
-    UrlInput,
-    setUrlInput,
-    UrlError,
-    urlLoading,
-    handleFileSubmit,
-    handleUrlSubmit,
-    removePdf,
-    setFileUrl,
-    setFileName,
-    setFile,
+    file, fileUrl, fileName, UrlInput, setUrlInput, UrlError, urlLoading,
+    handleFileSubmit, handleUrlSubmit, removePdf, setFileUrl, setFileName, setFile,
   } = usePdf();
 
-  const {
-    query,
-    setQuery,
-    message,
-    isTyping,
-    sendMessage,
-    chatEndRef,
-  } = usePdfChat(fileName);
-
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);  // NAYA
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
 
-  // Sync uploaded/URL files into sidebar history
-  useEffect(() => {
-    if (fileUrl && fileName) {
-      const exists = documents.some(
-        (doc) => doc.url === fileUrl || doc.name === fileName
-      );
-      if (!exists) {
-        setDocuments((prev) => [
-          {
-            id: crypto.randomUUID(),
-            name: fileName,
-            size: file ? file.size : 150 * 1024, // default fallback size for URLs (150 KB)
-            url: fileUrl,
-          },
-          ...prev,
-        ]);
-      }
-    }
-  }, [fileUrl, fileName, file, documents]);
+  const { query, setQuery, message, isTyping, sendMessage, chatEndRef } =
+    usePdfChat(fileName, activeDocumentId);  
 
   const handlePdfUpload = async (uploadedFile: File) => {
-    handleFileSubmit(uploadedFile);
     try {
-      await Upload_Pdf(uploadedFile);
+      const res = await Upload_Pdf(uploadedFile); 
+      handleFileSubmit(uploadedFile);  
+      setActiveDocumentId(res.document_id);
+
+      setDocuments((prev) => {
+        const exists = prev.some((d) => d.documentId === res.document_id);
+        if (exists) return prev;
+        return [
+          {
+            id: crypto.randomUUID(),
+            documentId: res.document_id,
+            name: res.filename,
+            size: uploadedFile.size,
+            url: URL.createObjectURL(uploadedFile),
+          },
+          ...prev,
+        ];
+      });
     } catch (error) {
-      console.error("PDF upload failed or was simulated:", error);
+      console.error("PDF upload failed:", error);
     }
   };
 
   return (
     <div className="pdf-analyzer">
-      {/* Moving Ambient Glowing Orbs */}
-      <div className="ambient-glows">
-        <div className="glow-blob glow-blob-1" />
-        <div className="glow-blob glow-blob-2" />
-        <div className="glow-blob glow-blob-3" />
-      </div>
+      {/* ... ambient glows same ... */}
 
       <Header
         pdfName={fileName}
@@ -100,19 +68,11 @@ export default function PdfAnalyzer() {
       />
 
       <div className="app-workspace">
-        {/* Mobile Sidebar Overlay */}
-        <div
-          className={`sidebar-overlay ${sidebarOpen ? "show" : ""}`}
-          onClick={() => setSidebarOpen(false)}
-        />
+        <div className={`sidebar-overlay ${sidebarOpen ? "show" : ""}`} onClick={() => setSidebarOpen(false)} />
 
-        {/* Beautiful Glassmorphic Sidebar */}
         <aside className={`app-sidebar ${sidebarOpen ? "open" : ""}`}>
           <div className="sidebar-header">
-            <h2 className="sidebar-title">
-              <FolderOpen size={14} />
-              <span>Workspace Files</span>
-            </h2>
+            <h2 className="sidebar-title"><FolderOpen size={14} /><span>Workspace Files</span></h2>
           </div>
           <div className="sidebar-content">
             {documents.length === 0 ? (
@@ -124,11 +84,12 @@ export default function PdfAnalyzer() {
               documents.map((doc) => (
                 <button
                   key={doc.id}
-                  className={`doc-item ${fileUrl === doc.url ? "active" : ""}`}
+                  className={`doc-item ${activeDocumentId === doc.documentId ? "active" : ""}`}
                   onClick={() => {
                     setFileUrl(doc.url);
                     setFileName(doc.name);
                     setFile(null);
+                    setActiveDocumentId(doc.documentId);   // <-- switch karte waqt documentId bhi badlo
                     setSidebarOpen(false);
                   }}
                 >
@@ -136,9 +97,7 @@ export default function PdfAnalyzer() {
                     <FileText size={15} className="doc-item-icon" />
                     <div className="doc-item-meta">
                       <span className="doc-item-name">{doc.name}</span>
-                      <span className="doc-item-size">
-                        {(doc.size / 1024).toFixed(1)} KB
-                      </span>
+                      <span className="doc-item-size">{(doc.size / 1024).toFixed(1)} KB</span>
                     </div>
                   </div>
                   <span
@@ -146,8 +105,9 @@ export default function PdfAnalyzer() {
                     onClick={(e) => {
                       e.stopPropagation();
                       setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
-                      if (fileUrl === doc.url) {
+                      if (activeDocumentId === doc.documentId) {
                         removePdf();
+                        setActiveDocumentId(null);
                       }
                     }}
                   >
@@ -158,20 +118,12 @@ export default function PdfAnalyzer() {
             )}
           </div>
           <div className="sidebar-footer">
-            <button
-              className="upload-sidebar-btn"
-              onClick={() => {
-                removePdf();
-                setSidebarOpen(false);
-              }}
-            >
-              <Plus size={14} />
-              <span>Upload New PDF</span>
+            <button className="upload-sidebar-btn" onClick={() => { removePdf(); setActiveDocumentId(null); setSidebarOpen(false); }}>
+              <Plus size={14} /><span>Upload New PDF</span>
             </button>
           </div>
         </aside>
 
-        {/* Main Content Workspace */}
         <main className="main-workspace">
           {!fileUrl ? (
             <UploadView
@@ -191,7 +143,7 @@ export default function PdfAnalyzer() {
               query={query}
               isTyping={isTyping}
               chatEndRef={chatEndRef}
-              onRemove={removePdf}
+              onRemove={() => { removePdf(); setActiveDocumentId(null); }}
               onQueryChange={setQuery}
               onSend={sendMessage}
             />
