@@ -3,6 +3,8 @@ from pydantic import BaseModel
 
 class UploadResponse(BaseModel):
     status: str
+    document_id: str
+    filename: str
     characters_extracted: int
     total_pdf_chunks: int
     total_pages: int
