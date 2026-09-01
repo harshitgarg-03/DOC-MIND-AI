@@ -13,7 +13,12 @@ Question:
 
 
 def retrieve_relevant_chunks(question: str, document_id: str):
-    total_chunks = collection.count()
+
+    existing = collection.get(
+        where={"document_id": document_id},
+        include=[]
+    )
+    total_chunks = len(existing["ids"])
     if total_chunks == 0:
         return None
 
