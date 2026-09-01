@@ -12,13 +12,13 @@ Question:
 """
 
 
-def retrieve_relevant_chunks(question: str):
+def retrieve_relevant_chunks(question: str, document_id: str):
     total_chunks = collection.count()
     if total_chunks == 0:
         return None
 
     n = min(total_chunks, MAX_CONTEXT_CHUNKS)
-    results = collection.query(query_texts=[question], n_results=n)
+    results = collection.query(query_texts=[question], n_results=n, where={"document_id": document_id})
 
     # TODO: distance-based threshold filtering yahan add karna hai
     relevant_chunks = results["documents"][0]
