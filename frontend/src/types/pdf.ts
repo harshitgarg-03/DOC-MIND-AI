@@ -1,5 +1,16 @@
 export type Theme = "dark" | "light";
 
+
+export interface UploadResponse {
+  status: string;
+  document_id: string;
+  filename: string;
+  characters_extracted: number;
+  total_pdf_chunks: number;
+  total_pages: number;
+}
+
+
 export interface Citation {
   chunk_index: number;
   page: number;
