@@ -249,7 +249,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import upload, ask
+from app.routers import upload, ask, documents
 
 app = FastAPI(title="PDF Analyzer")
 
@@ -262,3 +262,4 @@ app.add_middleware(
 
 app.include_router(upload.router)
 app.include_router(ask.router)
+app.include_router(documents.router)
