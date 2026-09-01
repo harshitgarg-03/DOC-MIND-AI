@@ -8,8 +8,8 @@ router = APIRouter()
 
 
 @router.post("/ask")
-def ask_question(question: str = Form(...)):
-    result = retrieve_relevant_chunks(question)
+def ask_question(question: str = Form(...), document_id: str = Form(...)):
+    result = retrieve_relevant_chunks(question, document_id)
 
     if result is None:
         async def error_gen():
