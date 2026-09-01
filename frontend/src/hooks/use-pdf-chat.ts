@@ -4,7 +4,10 @@ import { Ask_Question } from "@/services/pdf-api";
 import { Message } from "@/types/pdf";
 import { useEffect, useRef, useState } from "react";
 
-export function usePdfChat(pdfName?: string | null) {
+export function usePdfChat(
+  pdfName?: string | null,
+  documentId?: string | null,
+) {
   const [query, setQuery] = useState("");
   const [message, setMessage] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -19,12 +22,27 @@ export function usePdfChat(pdfName?: string | null) {
 
   useEffect(() => {
     setMessage([]);
-  }, [pdfName]);
+  }, [pdfName, documentId]);
 
   const sendMessage = async () => {
     const text = query.trim();
 
     if (!text || isTyping) return;
+
+    if (!documentId) {
+      setMessage((prev) => [
+        ...prev,
+        { id: crypto.randomUUID(), role: "user", text },
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          text: "Is PDF ka document_id nahi mila — upload dobara try karo.",
+        },
+      ]);
+
+      setQuery("");
+      return;
+    }
 
     const userMessage: Message = {
       id: crypto.randomUUID(),
@@ -52,7 +70,7 @@ export function usePdfChat(pdfName?: string | null) {
     let displayed = "";
     let streamEnded = false;
     let streamErrored = false;
-    
+
     const CHARS_PER_TICK = 2;
     const TICK_MS = 16;
 
@@ -64,8 +82,8 @@ export function usePdfChat(pdfName?: string | null) {
 
         setMessage((prev) =>
           prev.map((msg) =>
-            msg.id === assistantId ? { ...msg, text: displayed } : msg
-          )
+            msg.id === assistantId ? { ...msg, text: displayed } : msg,
+          ),
         );
       } else if (streamEnded) {
         clearInterval(revealTimer);
@@ -75,15 +93,20 @@ export function usePdfChat(pdfName?: string | null) {
           setMessage((prev) =>
             prev.map((msg) =>
               msg.id === assistantId
-                ? { ...msg, text: "Sorry! Unable to generate response for now." }
-                : msg
-            )
+                ? {
+                    ...msg,
+                    text: "Sorry! Unable to generate response for now.",
+                  }
+                : msg,
+            ),
           );
         } else if (pendingCitations?.length) {
           setMessage((prev) =>
             prev.map((msg) =>
-              msg.id === assistantId ? { ...msg, citations: pendingCitations } : msg
-            )
+              msg.id === assistantId
+                ? { ...msg, citations: pendingCitations }
+                : msg,
+            ),
           );
         }
       }
@@ -92,7 +115,7 @@ export function usePdfChat(pdfName?: string | null) {
     let pendingCitations: Message["citations"] = undefined;
 
     try {
-      const stream = Ask_Question(text);
+      const stream = Ask_Question(text, documentId);
 
       for await (const event of stream) {
         if (event.type === "token") {
