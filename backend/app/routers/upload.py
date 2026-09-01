@@ -10,6 +10,7 @@ from app.services.chunker import chunk_with_metadata
 from app.models.schemas import UploadResponse
 from app import state
 
+from app.core.clients import embedder
 router = APIRouter()
 
 
@@ -22,6 +23,35 @@ def upload_pdf(file: UploadFile = File(...)):
     full_text = "".join(text for _, text in pages)
 
     chunk_data = chunk_with_metadata(pages)
+
+    # documents = [c["text"] for c in chunk_data]
+    # print("Chunks:", len(chunk_data))
+    # print("Documents:", len([c["text"] for c in chunk_data]))
+    # print("Metadatas:", len([
+    #     {
+    #         "page": c["page"],
+    #         "section": c["section"],
+    #         "document_id": document_id,
+    #     }
+    #     for c in chunk_data
+    # ]))
+
+    # print("IDs:", len([
+    #     f"{document_id}_chunk_{i}"
+    #     for i in range(len(chunk_data))
+    # ]))
+
+
+    # --- TEMPORARY DEBUG ---
+    # for i, doc in enumerate(documents):
+    #     print(f"[{i}] len={len(doc)} repr={repr(doc[:60])}")
+
+    # print("Duplicate check:", len(documents) != len(set(documents)))
+
+    # Embedder ko direct call karke dekho kitne embeddings wapas aate hain
+    # test_embeddings = embedder(documents)
+    # print(f"Sent {len(documents)} documents, got {len(test_embeddings)} embeddings back")
+    # --- END DEBUG ---
 
     collection.add(
         documents=[c["text"] for c in chunk_data],

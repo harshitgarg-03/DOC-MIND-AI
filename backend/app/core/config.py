@@ -9,7 +9,7 @@ if not GEMINI_API_KEY:
     raise RuntimeError("GEMINI_API_KEY missing in environment — check your .env file")
 
 CHROMA_PATH = "./chroma_db"
-EMBEDDING_MODEL = "gemini-embedding-001"
+EMBEDDING_MODEL = "gemini-embedding-2"
 CHAT_MODEL = "gemini-3.1-flash-lite"  # verify actual model name against Gemini docs
 
 MAX_CONTEXT_CHUNKS = 7
