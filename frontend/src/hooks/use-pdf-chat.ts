@@ -4,6 +4,8 @@ import { Ask_Question } from "@/services/pdf-api";
 import { Message } from "@/types/pdf";
 import { useEffect, useRef, useState } from "react";
 
+const chatCache = new Map<string, Message[]>();
+
 export function usePdfChat(
   pdfName?: string | null,
   documentId?: string | null,
@@ -20,9 +22,23 @@ export function usePdfChat(
     });
   }, [message, isTyping]);
 
+  const prevDocIdRef = useRef<string | null | undefined>(documentId) 
+
   useEffect(() => {
-    setMessage([]);
-  }, [pdfName, documentId]);
+    const prevId = prevDocIdRef.current;
+
+    if (prevId) {
+      chatCache.set(prevId, message);   // purana wala save karo before switching
+    }
+
+    if (documentId) {
+      setMessage(chatCache.get(documentId) ?? []);   // naya wala restore karo
+    } else {
+      setMessage([]);
+    }
+
+    prevDocIdRef.current = documentId;
+  }, [documentId]);
 
   const sendMessage = async () => {
     const text = query.trim();
@@ -44,13 +60,20 @@ export function usePdfChat(
       return;
     }
 
+    const historyForRequest = message.map((m) => ({ role: m.role, text: m.text }));
+
+
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: "user",
       text,
     };
 
-    setMessage((prev) => [...prev, userMessage]);
+    setMessage((prev) => {
+      const updated = [...prev, userMessage];
+      chatCache.set(documentId, updated);   // har update pe cache bhi sync kari
+      return updated;
+    });
 
     setQuery("");
     setIsTyping(true);
@@ -74,17 +97,22 @@ export function usePdfChat(
     const CHARS_PER_TICK = 2;
     const TICK_MS = 16;
 
+    const updateAndCache = (updater: (prev: Message[]) => Message[]) => {
+      setMessage((prev) => {
+        const updated = updater(prev);
+        chatCache.set(documentId, updated);   // streaming ke dauraan bhi cache sync
+        return updated;
+      });
+    };
+
+
     const revealTimer = setInterval(() => {
       if (queue.length > 0) {
         const take = Math.min(CHARS_PER_TICK, queue.length);
         displayed += queue.slice(0, take);
         queue = queue.slice(take);
 
-        setMessage((prev) =>
-          prev.map((msg) =>
-            msg.id === assistantId ? { ...msg, text: displayed } : msg,
-          ),
-        );
+        updateAndCache((prev) => prev.map((msg) => (msg.id === assistantId ? { ...msg, text: displayed } : msg)));
       } else if (streamEnded) {
         clearInterval(revealTimer);
         setIsTyping(false);
@@ -115,7 +143,7 @@ export function usePdfChat(
     let pendingCitations: Message["citations"] = undefined;
 
     try {
-      const stream = Ask_Question(text, documentId);
+      const stream = Ask_Question(text, documentId, historyForRequest);
 
       for await (const event of stream) {
         if (event.type === "token") {

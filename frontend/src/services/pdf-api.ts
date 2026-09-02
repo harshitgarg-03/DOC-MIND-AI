@@ -26,12 +26,13 @@ export type StreamEvent =
   | { type: "citations"; value: import("@/types/pdf").Citation[] };
 
 export async function* Ask_Question(
-  question: string, documentId: string,
+  question: string, documentId: string, history: {role: string, text:string}[] = []
 ): AsyncGenerator<StreamEvent> {
   const formdata = new FormData();
 
   formdata.append("question", question);
   formdata.append("document_id", documentId);
+  formdata.append("history", JSON.stringify(history));
 
   const response = await fetch(`${API_URL}/ask`, {
     method: "POST",
