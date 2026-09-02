@@ -12,18 +12,25 @@ Question:
 """
 
 
-def retrieve_relevant_chunks(question: str, document_id: str):
+def retrieve_relevant_chunks(question: str, document_id: str, history: list[dict] | None = None):
 
     existing = collection.get(
         where={"document_id": document_id},
         include=[]
     )
     total_chunks = len(existing["ids"])
+    
     if total_chunks == 0:
         return None
 
+    search_query = question
+    if history:
+        last_turns = history[-4:]
+        context_snippet = " ".join(m.get("text", "") for m in last_turns if m.get("text"))
+        search_query = f"{context_snippet} {question}".strip()
+
     n = min(total_chunks, MAX_CONTEXT_CHUNKS)
-    results = collection.query(query_texts=[question], n_results=n, where={"document_id": document_id})
+    results = collection.query(query_texts=[search_query], n_results=n, where={"document_id": document_id})
 
     # TODO: distance-based threshold filtering yahan add karna hai
     relevant_chunks = results["documents"][0]

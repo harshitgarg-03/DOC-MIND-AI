@@ -14,7 +14,7 @@ def ask_question(question: str = Form(...), document_id: str = Form(...), histor
     except (json.JSONDecodeError, TypeError):
         parsed_history = []
 
-    result = retrieve_relevant_chunks(question, document_id)
+    result = retrieve_relevant_chunks(question, document_id, parsed_history)
 
     if result is None:
         async def error_gen():
