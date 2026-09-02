@@ -1,3 +1,4 @@
+"use client";
 import { usePdfChat } from "@/hooks/use-pdf-chat";
 import { usePdf } from "@/hooks/usePdf";
 import { useTheme } from "@/hooks/useTheme";
