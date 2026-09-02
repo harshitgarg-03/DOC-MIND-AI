@@ -8,7 +8,12 @@ router = APIRouter()
 
 
 @router.post("/ask")
-def ask_question(question: str = Form(...), document_id: str = Form(...)):
+def ask_question(question: str = Form(...), document_id: str = Form(...), history: str = Form("[]")):
+    try:
+        parsed_history = json.loads(history)
+    except (json.JSONDecodeError, TypeError):
+        parsed_history = []
+
     result = retrieve_relevant_chunks(question, document_id)
 
     if result is None:
@@ -17,4 +22,4 @@ def ask_question(question: str = Form(...), document_id: str = Form(...)):
         return EventSourceResponse(error_gen())
 
     relevant_chunks, relevant_metadata = result
-    return EventSourceResponse(stream_answer(question, relevant_chunks, relevant_metadata))
+    return EventSourceResponse(stream_answer(question, relevant_chunks, relevant_metadata, parsed_history))

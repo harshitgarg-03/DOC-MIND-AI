@@ -31,13 +31,39 @@ def retrieve_relevant_chunks(question: str, document_id: str):
     return relevant_chunks, relevant_metadata
 
 
-def build_prompt(question: str, relevant_chunks: list[str]) -> str:
+def build_prompt(question: str, relevant_chunks: list[str], history: list[dict]) -> str:
     context = "\n\n---\n\n".join(relevant_chunks)
-    return PROMPT_TEMPLATE.format(context=context, question=question)
 
 
-async def stream_answer(question: str, relevant_chunks: list[str], relevant_metadata: list[dict]):
-    prompt = build_prompt(question, relevant_chunks)
+    history_text = ""
+    if history:
+        turns = []
+        for msg in history[-6:]:
+            speaker = "User" if msg.get("role") == "user" else "Assistant"
+            turns.append(f"{speaker}: {msg.get('text', '')}")
+        history_text = "\n".join(turns)
+
+    prompt = f"""Answer the question based on the context provided below. If the answer is not available in the context, say "This information was not found in the document."
+
+            Context:
+            {context}
+            """
+
+    if history_text:
+                prompt += f"""
+            Previous conversation (for reference, to understand follow-up questions):
+            {history_text}
+            """
+
+    prompt += f"""
+            Question:
+            {question}
+            """
+    return prompt
+    
+
+async def stream_answer(question: str, relevant_chunks: list[str], relevant_metadata: list[dict], history: list[dict]):
+    prompt = build_prompt(question, relevant_chunks, history)
 
     response = genai_client.models.generate_content_stream(
         model=CHAT_MODEL,
