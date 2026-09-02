@@ -1,0 +1,23 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pdf_analyzer_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pdfanalyzer
+      POSTGRES_PASSWORD: pdfanalyzer_pass
+      POSTGRES_DB: pdf_analyzer_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pdf_analyzer_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pdfanalyzer -d pdf_analyzer_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pdf_analyzer_pgdata:
