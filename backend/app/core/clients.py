@@ -11,6 +11,16 @@ embedder = embedding_functions.GoogleGeminiEmbeddingFunction(
     task_type="RETRIEVAL_DOCUMENT",
 )
 
+def embed_texts_individually(texts: list[str]) -> list[list[float]]:
+    """Chroma ke embedding_function ka multi-text batching buggy hai —
+    ek call mein 3+ texts dene par kam embeddings wapas aate hain.
+    Isliye har text ka embedding alag call mein banate hain."""
+    embeddings = []
+    for text in texts:
+        result = embedder([text])   # ek baar mein sirf 1 text
+        embeddings.append(result[0])
+    return embeddings
+
 chroma_client = chromadb.PersistentClient(path=CHROMA_PATH)
 
 collection = chroma_client.get_or_create_collection(
