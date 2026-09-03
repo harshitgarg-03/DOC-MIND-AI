@@ -12,3 +12,5 @@ google-genai
 langchain
 langchain-text-splitters
 sse-starlette
+sqlalchemy
+psycopg2-binary
