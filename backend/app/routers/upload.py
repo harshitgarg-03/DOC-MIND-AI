@@ -37,10 +37,11 @@ def upload_pdf(file: UploadFile = File(...), db:Session = Depends(get_db)):
                 "section": c["section"],
                 "document_id": document_id,
             }
-            for c in chunk_data
+            for c in chunk_data 
         ],
         ids=[f"{document_id}_chunk_{i}" for i in range(len(chunk_data))],
     )
+    # print("PRINT ARE ++++++ IN UPLOAD ", document_id, file.filename, len(chunk_data), len(pages))
 
     add_document(
         db,

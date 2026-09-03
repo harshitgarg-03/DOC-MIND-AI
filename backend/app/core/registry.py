@@ -2,12 +2,13 @@ from sqlalchemy.orm import Session
 from app.models.db_models import Document
 
 
-def add_document(db: Session, document_id: str, filename: str, total_pages: int, total_chuks: int):
+def add_document(db: Session, document_id: str, filename: str, total_pages: int, total_chunks: int):
+    # print("PRINT ARE ++++++ ", document_id, filename, total_chuks, total_pages)
     doc = Document(
         document_id = document_id,
         filename = filename,
         total_pages = total_pages,
-        total_chuks = total_chuks
+        total_chunks = total_chunks
     )
 
     db.add(doc)
