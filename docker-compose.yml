@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: pdfanalyzer_pass
       POSTGRES_DB: pdf_analyzer_db
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pdf_analyzer_pgdata:/var/lib/postgresql/data
     healthcheck:
