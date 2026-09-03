@@ -1,12 +1,32 @@
-# NOTE: process-wide global state — only supports a single active PDF/user.
-# Replace with session-scoped or DB-backed storage before multi-user use.
+from sqlalchemy.orm import Session
+from app.models.db_models import Document
 
-# pdf_text_store: str = ""
-# pdf_chunks: list[str] = []
 
-# new cersion for multi pdf support ...
+def add_document(db: Session, document_id: str, filename: str, total_pages: int, total_chuks: int):
+    doc = Document(
+        document_id = document_id,
+        filename = filename,
+        total_pages = total_pages,
+        total_chuks = total_chuks
+    )
 
-from datetime import datetime
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+    return doc
 
-# document_id -> metadata (filename, page count, upload time)
-documents_registry: dict[str, dict] = {}
+
+def get_allDocs(db: Session):
+    return db.query(Document).all()
+
+def get_document(db: Session, document_id: str):
+    return db.query(Document).filter(Document.document_id == document_id).first()
+
+def delete_document(db: Session, document_id: str) -> bool:
+    doc = get_document(db, document_id)
+    if not doc:
+        return False
+
+    db.delete(doc)
+    db.commit()
+    return True
