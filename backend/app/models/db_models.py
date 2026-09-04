@@ -1,7 +1,8 @@
-from sqlalchemy import Column, String, Integer, DateTime
+from sqlalchemy import Column, String, Integer, DateTime, Text, ForeignKey, JSON
 from datetime import datetime
 
 from app.core.database import Base
+import uuid
 
 class Document(Base):
     __tablename__ = "documents"
@@ -18,5 +19,23 @@ class Document(Base):
             "total_pages": self.total_pages,
             "total_chunks": self.total_chunks,
             "uploaded_at": self.uploaded_at.isoformat(),
+        }
+
+
+class ChatMessage(Base):
+    __tablename__ = "chats-message"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    document_id = Column(String, ForeignKey("documents.document_id", ondelete="CASCADE"), nullable=False, index=True)
+    role = Column(String, nullable=False)
+    text = Column(Text, nullable=False)
+    citations = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "role": self.role,
+            "text": self.text,
+            "citations": self.citations,
         }
 
