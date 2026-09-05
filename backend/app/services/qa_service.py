@@ -90,6 +90,6 @@ async def stream_answer(question: str, relevant_chunks: list[str], relevant_meta
         }
         for i, (doc, meta) in enumerate(zip(relevant_chunks, relevant_metadata))
     ]
-    yield {"data": json.dumps({"citations": citations})}
+    yield {"data": json.dumps({"citations": citations})} 
 
     yield {"data": json.dumps({"done": True, "chunk_used": len(relevant_chunks)})}
