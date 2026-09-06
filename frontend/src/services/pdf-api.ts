@@ -83,3 +83,14 @@ export async function* Ask_Question(
     }
   }
 }
+
+
+export async function get_Document_Message(document_id: string){
+  const res = await fetch(`${API_URL}/documents/${document_id}/messages`)
+
+  if(!res.ok) return []
+
+  const data = await res.json()
+
+  return data.messages as { id: string; role: "user" | "assistant"; text: string; citations?: any[] }[];
+}
