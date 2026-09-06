@@ -33,7 +33,7 @@ def DeleteDocuments(document_id: str, db: Session = Depends(get_db)):
 
 @router.get("/documents/{document_id}/messages")
 def get_doc_msg(document_id: str, db: Session = Depends(get_db)):
-    doc = get_document(document_id, db)
+    doc = get_document(db, document_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
