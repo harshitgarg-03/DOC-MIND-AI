@@ -4,7 +4,7 @@ from app.core.clients import collection
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.registry import get_document, get_allDocs, delete_document 
+from app.core.registry import get_document, get_allDocs, delete_document, get_message 
 
 
 router = APIRouter()
@@ -30,3 +30,12 @@ def DeleteDocuments(document_id: str, db: Session = Depends(get_db)):
 
     delete_document(db, document_id)
     return {"status": "deleted", "document_id": document_id}
+
+@router.get("/documents/{document_id}/messages")
+def get_doc_msg(document_id: str, db: Session = Depends(get_db)):
+    doc = get_document(document_id, db)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    messages = get_message(db, document_id)
+    return {"messages": [m.to_dict() for m in messages]}
