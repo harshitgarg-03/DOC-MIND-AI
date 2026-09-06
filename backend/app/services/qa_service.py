@@ -1,6 +1,8 @@
 import json
 from app.core.clients import genai_client, collection
 from app.core.config import CHAT_MODEL, MAX_CONTEXT_CHUNKS
+from app.core.registry import save_message
+from sqlalchemy.orm import Session
 
 PROMPT_TEMPLATE = """Answer the question based on the context provided below. If the answer is not available in the context, say "This information was not found in the document."
 
@@ -69,8 +71,11 @@ def build_prompt(question: str, relevant_chunks: list[str], history: list[dict])
     return prompt
     
 
-async def stream_answer(question: str, relevant_chunks: list[str], relevant_metadata: list[dict], history: list[dict]):
+async def stream_answer(question: str, relevant_chunks: list[str], relevant_metadata: list[dict], history: list[dict], document_id: str,
+    db: Session,):
     prompt = build_prompt(question, relevant_chunks, history)
+
+    full_answer = ""
 
     response = genai_client.models.generate_content_stream(
         model=CHAT_MODEL,
@@ -79,6 +84,7 @@ async def stream_answer(question: str, relevant_chunks: list[str], relevant_meta
 
     for chunk in response:
         if chunk.text:
+            full_answer += chunk.text
             yield {"data": json.dumps({"token": chunk.text})}
 
     citations = [
@@ -93,3 +99,6 @@ async def stream_answer(question: str, relevant_chunks: list[str], relevant_meta
     yield {"data": json.dumps({"citations": citations})} 
 
     yield {"data": json.dumps({"done": True, "chunk_used": len(relevant_chunks)})}
+
+    save_message(db, document_id, role="user", text=question)
+    save_message(db, document_id, role="assistant", text=full_answer, citations=citations)
