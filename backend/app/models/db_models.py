@@ -23,7 +23,7 @@ class Document(Base):
 
 
 class ChatMessage(Base):
-    __tablename__ = "chats-message"
+    __tablename__ = "chat_messages"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     document_id = Column(String, ForeignKey("documents.document_id", ondelete="CASCADE"), nullable=False, index=True)
     role = Column(String, nullable=False)
