@@ -255,7 +255,7 @@ from app.core.database import engine, Base
 from app.models import db_models
 
 app = FastAPI(title="PDF Analyzer")
-
+ 
 Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
