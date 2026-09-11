@@ -15,3 +15,5 @@ CHAT_MODEL = "gemini-3.1-flash-lite"  # verify actual model name against Gemini 
 MAX_CONTEXT_CHUNKS = 7
 CHUNK_SIZE = 800
 CHUNK_OVERLAP = 100
+
+DISTANCE_THRESHOLD = 0.8
