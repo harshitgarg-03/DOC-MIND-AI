@@ -4,7 +4,9 @@ from sqlalchemy.orm import Session
 from sse_starlette.sse import EventSourceResponse
 from app.core.database import get_db
 
-from app.services.qa_service import retrieve_relevant_chunks, stream_answer
+from app.core.clients import collection
+from app.services.qa_service import stream_answer
+from app.services.rag_graph import rag_graph
 
 router = APIRouter()
 
@@ -16,12 +18,18 @@ def ask_question(question: str = Form(...), document_id: str = Form(...), histor
     except (json.JSONDecodeError, TypeError):
         parsed_history = []
 
-    result = retrieve_relevant_chunks(question, document_id, parsed_history)
 
-    if result is None:
+    total_chunks = collection.count(where={"document_id": document_id})
+    if total_chunks == 0:
         async def error_gen():
-            yield {"data": json.dumps({"error": "phle pdf upload kro .!"})}
+            yield {"data": json.dumps({"error": "Document not found or has no chunks."})}
         return EventSourceResponse(error_gen())
 
-    relevant_chunks, relevant_metadata = result
-    return EventSourceResponse(stream_answer(question, relevant_chunks, relevant_metadata, parsed_history, document_id, db))
+
+    graph_state = rag_graph.invoke({
+        "question": question,
+        "document_id": document_id,
+        "history": parsed_history,
+    })
+
+    return EventSourceResponse(stream_answer(question, graph_state, document_id, db))
