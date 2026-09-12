@@ -2,6 +2,7 @@
 import { usePdfChat } from "@/hooks/use-pdf-chat";
 import { usePdf } from "@/hooks/usePdf";
 import { useTheme } from "@/hooks/useTheme";
+import { useToast } from "@/hooks/useToast";
 import { Upload_Pdf } from "@/services/pdf-api";
 import { useState } from "react";
 import Header from "./pdf-analyzer/header";
@@ -10,8 +11,8 @@ import UploadView from "./pdf-analyzer/upload_view";
 import AnalyzerView from "./analyzer_view";
 
 interface DocumentItem {
-  id: string;    
-  documentId: string; 
+  id: string;
+  documentId: string;
   name: string;
   size: number;
   url: string;
@@ -19,6 +20,7 @@ interface DocumentItem {
 
 export default function PdfAnalyzer() {
   const { theme, isDark, toggle_theme } = useTheme();
+  const { showToast } = useToast();
 
   const {
     file, fileUrl, fileName, UrlInput, setUrlInput, UrlError, urlLoading,
@@ -26,16 +28,16 @@ export default function PdfAnalyzer() {
   } = usePdf();
 
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
-  const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);  // NAYA
+  const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
 
   const { query, setQuery, message, isTyping, sendMessage, chatEndRef } =
-    usePdfChat(fileName, activeDocumentId);  
+    usePdfChat(fileName, activeDocumentId);
 
   const handlePdfUpload = async (uploadedFile: File) => {
     try {
-      const res = await Upload_Pdf(uploadedFile); 
-      handleFileSubmit(uploadedFile);  
+      const res = await Upload_Pdf(uploadedFile);
+      handleFileSubmit(uploadedFile);
       setActiveDocumentId(res.document_id);
 
       setDocuments((prev) => {
@@ -52,15 +54,16 @@ export default function PdfAnalyzer() {
           ...prev,
         ];
       });
-    } catch (error) {
+
+      showToast(`"${res.filename}" uploaded successfully`, "success");
+    } catch (error: any) {
       console.error("PDF upload failed:", error);
+      showToast(error.message || "Something went wrong while uploading the PDF.", "error");
     }
   };
 
   return (
     <div className="pdf-analyzer">
-      {/* ... ambient glows same ... */}
-
       <Header
         pdfName={fileName}
         isDark={isDark}
@@ -90,7 +93,7 @@ export default function PdfAnalyzer() {
                     setFileUrl(doc.url);
                     setFileName(doc.name);
                     setFile(null);
-                    setActiveDocumentId(doc.documentId);   // <-- switch karte waqt documentId bhi badlo
+                    setActiveDocumentId(doc.documentId);
                     setSidebarOpen(false);
                   }}
                 >

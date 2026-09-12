@@ -15,7 +15,8 @@ export async function Upload_Pdf(file: File) {
   });
 
   if (!response.ok) {
-    throw new Error("failed to upload pdf ");
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.detail || "Failed to upload PDF. Please try again.");
   }
 
   return response.json();
