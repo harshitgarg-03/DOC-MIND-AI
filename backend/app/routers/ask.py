@@ -19,7 +19,9 @@ def ask_question(question: str = Form(...), document_id: str = Form(...), histor
         parsed_history = []
 
 
-    total_chunks = collection.count(where={"document_id": document_id})
+    result = collection.get(where={"document_id": document_id}, include=[])
+
+    total_chunks = len(result["ids"])
     if total_chunks == 0:
         async def error_gen():
             yield {"data": json.dumps({"error": "Document not found or has no chunks."})}

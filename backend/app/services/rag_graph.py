@@ -33,7 +33,9 @@ def retrieve_node(state: RAGState) -> RAGState:
         context_snippet = " ".join(m.get("text", "") for m in last_turns if m.get("text"))
         search_query = f"{context_snippet} {question}".strip()
 
-    total_chunks = collection.count(where={"document_id": document_id})
+    result = collection.get(where={"document_id": document_id}, include=[])
+    
+    total_chunks = len(result["ids"])
     n = min(total_chunks, MAX_CONTEXT_CHUNKS) if total_chunks else 0
 
     if n == 0:
