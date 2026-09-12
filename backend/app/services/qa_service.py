@@ -1,8 +1,13 @@
 import json
+import logging
+
 from app.core.clients import genai_client
 from app.core.config import CHAT_MODEL, MAX_CONTEXT_CHUNKS
 from app.core.registry import save_message
 from sqlalchemy.orm import Session
+
+
+logger = logging.getLogger(__name__)
 
 PROMPT_TEMPLATE = """Answer the question based on the context provided below. If the answer is not available in the context, say "This information was not found in the document."
 
@@ -61,12 +66,28 @@ async def stream_answer(question: str, document_id: str, graph_state: dict, db: 
       relevant_metadata = graph_state["metadata"]
       full_answer = ""
 
-      response = genai_client.models.generate_content_stream(model=CHAT_MODEL, contents=prompt)  
+      # streaming fail ho toh answer gracefull handle ho jaae 
+      try:
+            response = genai_client.models.generate_content_stream(model=CHAT_MODEL, contents=prompt)  
 
-      for chunk in response:
-            if chunk.text:
-                  full_answer += chunk.text
-                  yield {"data": json.dumps({"token": chunk.text})}
+            for chunk in response:
+                  if chunk.text:
+                        full_answer += chunk.text
+                        yield {"data": json.dumps({"token": chunk.text})}
+
+      except Exception:
+            logger.exception("LLML streamin failed!")
+            error_message = "Sorry, something went wrong while generating the answer. Please try again!"
+            yield {"data": json.dumps({"errro": error_message})}
+
+            save_message(db, document_id, role="user", text=question)
+            save_message(
+            db, document_id, role="assistant",
+            text=full_answer if full_answer else error_message,
+            citations=[],
+        )
+            return
+
 
       citations = [
             {
