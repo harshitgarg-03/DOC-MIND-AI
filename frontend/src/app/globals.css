@@ -1392,9 +1392,10 @@ textarea:focus-visible {
 }
 
 .toast {
-  padding: 12px 16px;
+  padding: 14px 18px;
+  margin-right: 20px;
   border-radius: 10px;
-  font-size: 13px;
+  font-size: 16px;
   color: var(--foreground);
   background: var(--surface-raised);
   border: 1px solid var(--border);
