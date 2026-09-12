@@ -245,14 +245,22 @@
 
 
 
+import logging
 
-from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import upload, ask, documents
 
 from app.core.database import engine, Base
-from app.models import db_models
+from app.models import db_models # ye db load hota h 
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
 
 app = FastAPI(title="PDF Analyzer")
  
@@ -264,6 +272,16 @@ app.add_middleware(
     allow_headers=["*"],
     allow_methods=["*"],
 )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logging.exception(f"Unhandled error on {request.method} {request.url.path}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An unexpected error occurred. Please try again."},
+    )
+
 
 app.include_router(upload.router)
 app.include_router(ask.router)
