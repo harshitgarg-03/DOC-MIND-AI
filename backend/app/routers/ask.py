@@ -34,4 +34,4 @@ def ask_question(question: str = Form(...), document_id: str = Form(...), histor
         "history": parsed_history,
     })
 
-    return EventSourceResponse(stream_answer(question, graph_state, document_id, db))
+    return EventSourceResponse(stream_answer(question, document_id, graph_state, db))
