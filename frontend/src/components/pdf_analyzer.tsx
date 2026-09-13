@@ -61,7 +61,7 @@ export default function PdfAnalyzer() {
       showToast(error.message || "Something went wrong while uploading the PDF.", "error");
     }
   };
-
+  
   return (
     <div className="pdf-analyzer">
       <Header
