@@ -95,3 +95,16 @@ export async function get_Document_Message(document_id: string){
 
   return data.messages as { id: string; role: "user" | "assistant"; text: string; citations?: any[] }[];
 }
+
+export async function listDocuments() {
+  const res = await fetch(`${API_URL}/documents`);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.documents as {
+    document_id: string;
+    filename: string;
+    total_pages: number;
+    total_chunks: number;
+    file_url: string;
+  }[];
+}
