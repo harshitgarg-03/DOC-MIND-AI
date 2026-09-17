@@ -19,6 +19,7 @@ class Document(Base):
             "total_pages": self.total_pages,
             "total_chunks": self.total_chunks,
             "uploaded_at": self.uploaded_at.isoformat(),
+            "file_url": f"/files/{self.document_id}.pdf", 
         }
 
 
