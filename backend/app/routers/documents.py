@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from app.core.clients import collection
 
+import os
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -8,7 +9,7 @@ from app.core.registry import get_document, get_allDocs, delete_document, get_me
 
 
 router = APIRouter()
-
+UPLOAD_DIR = "uploaded_files"
 
 @router.get("/documents")
 def listDocuments(db: Session = Depends(get_db)):
@@ -24,10 +25,15 @@ def DeleteDocuments(document_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Document not found")
 
     existing = collection.get(where={"document_id": document_id}, include=[])
-
     if existing["ids"]:
         collection.delete(ids=existing["ids"])
 
+    
+    file_path = os.path.join(UPLOAD_DIR, f"{document_id}.pdf")
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
+    
     delete_document(db, document_id)
     return {"status": "deleted", "document_id": document_id}
 
