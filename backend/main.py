@@ -250,6 +250,7 @@ import logging
 from fastapi.responses import JSONResponse
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.routers import upload, ask, documents
 
@@ -272,7 +273,7 @@ app.add_middleware(
     allow_headers=["*"],
     allow_methods=["*"],
 )
-
+app.mount("/files", StaticFiles(directory="uploaded_files"), name="files")
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
