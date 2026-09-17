@@ -78,9 +78,6 @@ export default function PdfAnalyzer() {
   };
 
   const handleDeleteDocument = async (doc: DocumentItem) => {
-  const confirmed = window.confirm(`Delete "${doc.name}"? This will remove the file and its chat history permanently.`);
-  if (!confirmed) return;
-
   try {
     await deleteDocument(doc.documentId);
 
