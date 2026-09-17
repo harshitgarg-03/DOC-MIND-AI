@@ -3,7 +3,7 @@ import { usePdfChat } from "@/hooks/use-pdf-chat";
 import { usePdf } from "@/hooks/usePdf";
 import { useTheme } from "@/hooks/useTheme";
 import { useToast } from "@/hooks/useToast";
-import { listDocuments, Upload_Pdf } from "@/services/pdf-api";
+import { deleteDocument, listDocuments, Upload_Pdf } from "@/services/pdf-api";
 import { useEffect, useState } from "react";
 import Header from "./pdf-analyzer/header";
 import { FileText, FolderOpen, Plus, Trash2 } from "lucide-react";
@@ -76,6 +76,27 @@ export default function PdfAnalyzer() {
       showToast(error.message || "Something went wrong while uploading the PDF.", "error");
     }
   };
+
+  const handleDeleteDocument = async (doc: DocumentItem) => {
+  const confirmed = window.confirm(`Delete "${doc.name}"? This will remove the file and its chat history permanently.`);
+  if (!confirmed) return;
+
+  try {
+    await deleteDocument(doc.documentId);
+
+    setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
+
+    if (activeDocumentId === doc.documentId) {
+      removePdf();
+      setActiveDocumentId(null);
+    }
+
+    showToast(`"${doc.name}" deleted`, "success");
+  } catch (error: any) {
+    console.error("Delete failed:", error);
+    showToast(error.message || "Failed to delete document.", "error");
+  }
+};
   
   return (
     <div className="pdf-analyzer">
@@ -123,11 +144,7 @@ export default function PdfAnalyzer() {
                     className="doc-item-delete"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
-                      if (activeDocumentId === doc.documentId) {
-                        removePdf();
-                        setActiveDocumentId(null);
-                      }
+                      handleDeleteDocument(doc);
                     }}
                   >
                     <Trash2 size={13} />

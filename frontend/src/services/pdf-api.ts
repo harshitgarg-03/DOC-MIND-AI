@@ -85,6 +85,18 @@ export async function* Ask_Question(
   }
 }
 
+export async function deleteDocument(documentId: string) {
+  const res = await fetch(`${API_URL}/documents/${documentId}`, {
+    method: "DELETE",
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => null);
+    throw new Error(errorData?.detail || "Failed to delete document.");
+  }
+
+  return res.json();
+}
 
 export async function get_Document_Message(document_id: string){
   const res = await fetch(`${API_URL}/documents/${document_id}/messages`)
