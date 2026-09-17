@@ -3,8 +3,8 @@ import { usePdfChat } from "@/hooks/use-pdf-chat";
 import { usePdf } from "@/hooks/usePdf";
 import { useTheme } from "@/hooks/useTheme";
 import { useToast } from "@/hooks/useToast";
-import { Upload_Pdf } from "@/services/pdf-api";
-import { useState } from "react";
+import { listDocuments, Upload_Pdf } from "@/services/pdf-api";
+import { useEffect, useState } from "react";
 import Header from "./pdf-analyzer/header";
 import { FileText, FolderOpen, Plus, Trash2 } from "lucide-react";
 import UploadView from "./pdf-analyzer/upload_view";
@@ -17,6 +17,8 @@ interface DocumentItem {
   size: number;
   url: string;
 }
+
+const API_URL = process.env.API_URL || "http://127.0.0.1:8000";
 
 export default function PdfAnalyzer() {
   const { theme, isDark, toggle_theme } = useTheme();
@@ -32,7 +34,20 @@ export default function PdfAnalyzer() {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
 
   const { query, setQuery, message, isTyping, sendMessage, chatEndRef } =
-    usePdfChat(fileName, activeDocumentId);
+  usePdfChat(fileName, activeDocumentId);
+
+  useEffect(() => {
+    listDocuments().then((docs) => {
+      const restored: DocumentItem[] = docs.map((d) => ({
+        id: crypto.randomUUID(),
+        documentId: d.document_id,
+        name: d.filename,
+        size: 0,   // size ab pata nahi, disk se dobara nahi maanga — cosmetic hai
+        url: `${API_URL}${d.file_url}`,   // ab ye blob nahi, real server URL hai
+      }));
+      setDocuments(restored);
+    });
+  }, []);
 
   const handlePdfUpload = async (uploadedFile: File) => {
     try {
@@ -49,7 +64,7 @@ export default function PdfAnalyzer() {
             documentId: res.document_id,
             name: res.filename,
             size: uploadedFile.size,
-            url: URL.createObjectURL(uploadedFile),
+            url: `${API_URL}/files/${res.document_id}.pdf`,
           },
           ...prev,
         ];
