@@ -1,6 +1,9 @@
 import uuid
 import logging
 
+import os
+import io
+
 from fastapi import APIRouter, File, UploadFile, Depends, HTTPException
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
@@ -17,6 +20,8 @@ from app.models.schemas import UploadResponse
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+UPLOAD_DIR = "uploaded_files"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.post("/upload", response_model=UploadResponse)
 def upload_pdf(file: UploadFile = File(...), db:Session = Depends(get_db)):
@@ -27,8 +32,10 @@ def upload_pdf(file: UploadFile = File(...), db:Session = Depends(get_db)):
 
 
     document_id = str(uuid.uuid4())
+
+    file_bytes = file.file.read()
     try:
-        reader = PdfReader(file.file)
+        reader = PdfReader(io.BytesIO(file_bytes))
     except PdfReadError:
         raise HTTPException(status_code=400, detail="This pdf is corrupted or not a valid pdf ")
     except Exception:
@@ -46,6 +53,9 @@ def upload_pdf(file: UploadFile = File(...), db:Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Failed to extract text from PDF.")
 
     full_text = "".join(text for _, text in pages)
+
+    if not full_text.strip():
+        raise HTTPException(status_code=400, detail="No extractable text found — this PDF might be scanned/image-based.")
 
     chunk_data = chunk_with_metadata(pages)
 
@@ -77,6 +87,11 @@ def upload_pdf(file: UploadFile = File(...), db:Session = Depends(get_db)):
 
     # print("PRINT ARE ++++++ IN UPLOAD ", document_id, file.filename, len(chunk_data), len(pages))
 
+    file_path = os.path.join(UPLOAD_DIR, f"{document_id}.pdf")
+    with open(file_path, "wb") as f:
+        f.write(file_bytes)
+
+    
     add_document(
         db,
         document_id=document_id,
