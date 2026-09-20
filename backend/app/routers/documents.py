@@ -35,12 +35,12 @@ def DeleteDocuments(document_id: str, db: Session = Depends(get_db), user_id: st
         os.remove(file_path)
 
     
-    delete_document(db, document_id)
+    delete_document(db, document_id, user_id)
     return {"status": "deleted", "document_id": document_id}
 
 @router.get("/documents/{document_id}/messages")
-def get_doc_msg(document_id: str, db: Session = Depends(get_db)):
-    doc = get_document(db, document_id)
+def get_doc_msg(document_id: str, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    doc = get_document(db, document_id, user_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 

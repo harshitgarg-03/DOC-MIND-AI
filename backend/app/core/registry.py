@@ -18,17 +18,14 @@ def add_document(db: Session, document_id: str, filename: str, total_pages: int,
     db.refresh(doc)
     return doc
 
-def get_allDocs(db: Session, document_id, user_id: str):
-    return db.query(Document).filter(
-        Document.document_id == document_id,
-        Document.user_id == user_id,
-    ).first()
+def get_allDocs(db: Session, user_id: str):
+    return db.query(Document).filter(Document.user_id == user_id).all()
 
-def get_document(db: Session, document_id: str):
-    return db.query(Document).filter(Document.document_id == document_id).first()
+def get_document(db: Session, document_id: str, user_id: str):
+    return db.query(Document).filter(Document.document_id == document_id, Document.user_id == user_id).first()
 
-def delete_document(db: Session, document_id: str) -> bool:
-    doc = get_document(db, document_id)
+def delete_document(db: Session, document_id: str, user_id: str) -> bool:
+    doc = get_document(db, document_id, user_id)
     if not doc:
         return False
 

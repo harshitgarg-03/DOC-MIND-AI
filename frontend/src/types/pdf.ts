@@ -36,6 +36,7 @@ export interface HeaderProps {
   isDark: boolean;
   onToggleTheme: () => void;
   onToggleSidebar?: () => void;
+  onLogout?: () => void;
 }
 
 export interface DropZoneProps {

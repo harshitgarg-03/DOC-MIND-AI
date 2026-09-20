@@ -1,11 +1,12 @@
 import { HeaderProps } from "@/types/pdf";
-import { Menu } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 
 export default function Header({
   pdfName,
   isDark,
   onToggleTheme,
   onToggleSidebar,
+  onLogout,
 }: HeaderProps) {
   return (
     <header className="app-header">
@@ -76,6 +77,17 @@ export default function Header({
             </svg>
           )}
         </button>
+
+        {onLogout && (
+          <button
+            className="logout-btn"
+            onClick={onLogout}
+            aria-label="Log out"
+            title="Log out"
+          >
+            <LogOut size={15} />
+          </button>
+        )}
       </div>
     </header>
   );

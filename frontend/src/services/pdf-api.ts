@@ -27,7 +27,7 @@ export async function Upload_Pdf(file: File) {
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const { data } = await authClient.token();   
-  console.log("JWT TOKEN IS :::", data?.token);
+  // console.log("JWT TOKEN IS :::", data?.token);
 
   return data?.token ? { Authorization: `Bearer ${data.token}` } : {};
 }

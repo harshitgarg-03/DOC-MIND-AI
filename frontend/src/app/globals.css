@@ -329,6 +329,26 @@ textarea:focus-visible {
   box-shadow: 0 0 10px var(--accent-dim);
 }
 
+.logout-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+  color: var(--muted);
+}
+
+.logout-btn:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: rgba(239, 68, 68, 0.08);
+}
+
 /* --------------------------------
    LEFT SIDEBAR (DOCUMENTS LIST)
 -------------------------------- */

@@ -5,6 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.routers import upload, ask, documents
+from app.core.database import Base, engine
+from app.models import db_models  # noqa: F401 -- ensures models are registered on Base before create_all
 
 logging.basicConfig(
     level=logging.INFO,
@@ -12,6 +14,14 @@ logging.basicConfig(
 )
 
 app = FastAPI(title="PDF Analyzer")
+
+
+@app.on_event("startup")
+def on_startup():
+    # Creates any tables that don't exist yet (documents, chat_messages, etc.)
+    # Safe to run every time -- create_all() skips tables that already exist.
+    Base.metadata.create_all(bind=engine)
+    logging.info("Database tables verified/created.")
 
 app.add_middleware(
     CORSMiddleware,
