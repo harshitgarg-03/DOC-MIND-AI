@@ -16,6 +16,7 @@ from app.services.pdf_extractor import extract_pages
 from app.services.chunker import chunk_with_metadata
 from app.models.schemas import UploadResponse
 
+from app.core.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -24,7 +25,7 @@ UPLOAD_DIR = "uploaded_files"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.post("/upload", response_model=UploadResponse)
-def upload_pdf(file: UploadFile = File(...), db:Session = Depends(get_db)):
+def upload_pdf(file: UploadFile = File(...), db:Session = Depends(get_db), user_id: str = Depends(get_current_user),):
 
     # File type check
     if not file.filename.lower().endswith(".pdf"):
@@ -65,7 +66,7 @@ def upload_pdf(file: UploadFile = File(...), db:Session = Depends(get_db)):
     documents = [c["text"] for c in chunk_data]
 
     metadatas = [
-        {"page": c["page"], "section": c["section"], "document_id": document_id}
+        {"page": c["page"], "section": c["section"], "document_id": document_id,  "user_id": user_id}
         for c in chunk_data
     ]
     ids = [f"{document_id}_chunk_{i}" for i in range(len(chunk_data))]
@@ -98,6 +99,7 @@ def upload_pdf(file: UploadFile = File(...), db:Session = Depends(get_db)):
         filename=file.filename,
         total_pages=len(pages),
         total_chunks=len(chunk_data),
+        user_id=user_id,
     )
 
     return {

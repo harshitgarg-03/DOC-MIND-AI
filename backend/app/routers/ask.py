@@ -3,16 +3,24 @@ from fastapi import APIRouter, Form, Depends
 from sqlalchemy.orm import Session
 from sse_starlette.sse import EventSourceResponse
 from app.core.database import get_db
+from app.core.auth import get_current_user
 
 from app.core.clients import collection
 from app.services.qa_service import stream_answer
 from app.services.rag_graph import rag_graph
+from app.core.registry import get_document
 
 router = APIRouter()
 
 
 @router.post("/ask")
-def ask_question(question: str = Form(...), document_id: str = Form(...), history: str = Form("[]"), db: Session = Depends(get_db)):
+def ask_question(question: str = Form(...), document_id: str = Form(...), history: str = Form("[]"), db: Session = Depends(get_db), user_id: str = Depends(get_current_user),):
+    doc = get_document(db, document_id, user_id)   # ownership verify karo
+    if not doc:
+        async def error_gen():
+            yield {"data": json.dumps({"error": "Document not found."})}
+        return EventSourceResponse(error_gen())
+    
     try:
         parsed_history = json.loads(history)
     except (json.JSONDecodeError, TypeError):

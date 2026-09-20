@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from app.core.clients import collection
+from app.core.auth import get_current_user
 
 import os
 from sqlalchemy.orm import Session
@@ -12,15 +13,15 @@ router = APIRouter()
 UPLOAD_DIR = "uploaded_files"
 
 @router.get("/documents")
-def listDocuments(db: Session = Depends(get_db)):
-    docs = get_allDocs(db)
+def listDocuments(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    docs = get_allDocs(db, user_id)
     return {"documents": [d.to_dict() for d in docs]}
 
 
 @router.delete("/documents/{document_id}")
-def DeleteDocuments(document_id: str, db: Session = Depends(get_db)):
+def DeleteDocuments(document_id: str, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
 
-    doc = get_document(db, document_id)
+    doc = get_document(db, document_id, user_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
