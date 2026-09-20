@@ -78,7 +78,7 @@ async def stream_answer(question: str, document_id: str, graph_state: dict, db: 
       except Exception:
             logger.exception("LLML streamin failed!")
             error_message = "Sorry, something went wrong while generating the answer. Please try again!"
-            yield {"data": json.dumps({"errro": error_message})}
+            yield {"data": json.dumps({"error": error_message})} 
 
             save_message(db, document_id, role="user", text=question)
             save_message(
