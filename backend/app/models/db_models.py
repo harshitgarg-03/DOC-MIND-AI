@@ -7,6 +7,7 @@ import uuid
 class Document(Base):
     __tablename__ = "documents"
     document_id = Column(String, primary_key=True, index=True)
+    user_id = Column(String, nullable=False, index=True)
     filename = Column(String, nullable=False)
     total_pages = Column(Integer, nullable=False)
     total_chunks = Column(Integer, nullable=False)

@@ -3,10 +3,11 @@ from app.models.db_models import Document, ChatMessage
 
 # DOCS OPERATION 
 
-def add_document(db: Session, document_id: str, filename: str, total_pages: int, total_chunks: int):
+def add_document(db: Session, document_id: str, filename: str, total_pages: int, total_chunks: int, user_id: str):
     # print("PRINT ARE ++++++ ", document_id, filename, total_chuks, total_pages)
     doc = Document(
         document_id = document_id,
+        user_id=user_id,   
         filename = filename,
         total_pages = total_pages,
         total_chunks = total_chunks
@@ -17,8 +18,11 @@ def add_document(db: Session, document_id: str, filename: str, total_pages: int,
     db.refresh(doc)
     return doc
 
-def get_allDocs(db: Session):
-    return db.query(Document).all()
+def get_allDocs(db: Session, document_id, user_id: str):
+    return db.query(Document).filter(
+        Document.document_id == document_id,
+        Document.user_id == user_id,
+    ).first()
 
 def get_document(db: Session, document_id: str):
     return db.query(Document).filter(Document.document_id == document_id).first()
