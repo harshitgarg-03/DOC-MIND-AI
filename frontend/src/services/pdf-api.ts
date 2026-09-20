@@ -26,9 +26,10 @@ export async function Upload_Pdf(file: File) {
 }
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
-  const session = await authClient.getSession();
-  const token = (session.data as any)?.session?.token;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  const { data } = await authClient.token();   
+  console.log("JWT TOKEN IS :::", data?.token);
+
+  return data?.token ? { Authorization: `Bearer ${data.token}` } : {};
 }
 
 export type StreamEvent =
@@ -46,6 +47,7 @@ export async function* Ask_Question(
 
   const response = await fetch(`${API_URL}/ask`, {
     method: "POST",
+    headers: await getAuthHeaders(),
     body: formdata,
   });
 
@@ -97,6 +99,7 @@ export async function* Ask_Question(
 export async function deleteDocument(documentId: string) {
   const res = await fetch(`${API_URL}/documents/${documentId}`, {
     method: "DELETE",
+    headers: await getAuthHeaders()
   });
 
   if (!res.ok) {
@@ -108,7 +111,7 @@ export async function deleteDocument(documentId: string) {
 }
 
 export async function get_Document_Message(document_id: string){
-  const res = await fetch(`${API_URL}/documents/${document_id}/messages`)
+  const res = await fetch(`${API_URL}/documents/${document_id}/messages`, {headers: await getAuthHeaders()})
 
   if(!res.ok) return []
 
@@ -118,7 +121,7 @@ export async function get_Document_Message(document_id: string){
 }
 
 export async function listDocuments() {
-  const res = await fetch(`${API_URL}/documents`);
+  const res = await fetch(`${API_URL}/documents`, {headers: await getAuthHeaders()});
   if (!res.ok) return [];
   const data = await res.json();
   return data.documents as {
