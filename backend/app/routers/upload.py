@@ -4,7 +4,7 @@ import logging
 import os
 import io
 
-from fastapi import APIRouter, File, UploadFile, Depends, HTTPException
+from fastapi import APIRouter, File, UploadFile, Depends, HTTPException, Request
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
 from sqlalchemy.orm import Session
@@ -16,6 +16,7 @@ from app.services.pdf_extractor import extract_pages
 from app.services.chunker import chunk_with_metadata
 from app.models.schemas import UploadResponse
 
+from app.core.rate_limiter import limiter
 from app.core.auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,8 @@ UPLOAD_DIR = "uploaded_files"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.post("/upload", response_model=UploadResponse)
-def upload_pdf(file: UploadFile = File(...), db:Session = Depends(get_db), user_id: str = Depends(get_current_user),):
+@limiter.limit("5/minute")   
+def upload_pdf(request: Request, file: UploadFile = File(...), db:Session = Depends(get_db), user_id: str = Depends(get_current_user),):
 
     # File type check
     if not file.filename.lower().endswith(".pdf"):

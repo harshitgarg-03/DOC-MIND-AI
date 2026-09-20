@@ -1,5 +1,6 @@
 import json
-from fastapi import APIRouter, Form, Depends
+from fastapi import APIRouter, Form, Depends, Request
+from app.core.rate_limiter import limiter
 from sqlalchemy.orm import Session
 from sse_starlette.sse import EventSourceResponse
 from app.core.database import get_db
@@ -14,7 +15,8 @@ router = APIRouter()
 
 
 @router.post("/ask")
-def ask_question(question: str = Form(...), document_id: str = Form(...), history: str = Form("[]"), db: Session = Depends(get_db), user_id: str = Depends(get_current_user),):
+@limiter.limit("15/minute") 
+def ask_question(request: Request, question: str = Form(...), document_id: str = Form(...), history: str = Form("[]"), db: Session = Depends(get_db), user_id: str = Depends(get_current_user),):
     doc = get_document(db, document_id, user_id)   # ownership verify karo
     if not doc:
         async def error_gen():
