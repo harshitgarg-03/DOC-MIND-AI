@@ -1,7 +1,106 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
+
 export default function SignupPage() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const router = useRouter();
+
+  const handleSignup = async () => {
+    setError("");
+
+    // Password validation
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { error: authError } = await authClient.signUp.email({
+        name,
+        email,
+        password,
+      });
+
+      if (authError) {
+        setError(authError.message || "Could not create account.");
+        return;
+      }
+
+      // Signup successful
+      router.push("/");
+      router.refresh();
+    } catch (err) {
+      console.error("Signup error:", err);
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignup = async () => {
+    setError("");
+    setLoading(true);
+
+    try {
+      const { error: authError } = await authClient.signIn.social({
+        provider: "google",
+        callbackURL: "/",
+      });
+
+      if (authError) {
+        setError(authError.message || "Google signup failed.");
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error("Google signup error:", err);
+      setError("Google signup failed. Please try again.");
+      setLoading(false);
+    }
+  };
+
+  const handleGithubSignup = async () => {
+    setError("");
+    setLoading(true);
+
+    try {
+      const { error: authError } = await authClient.signIn.social({
+        provider: "github",
+        callbackURL: "/",
+      });
+
+      if (authError) {
+        setError(authError.message || "GitHub signup failed.");
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error("GitHub signup error:", err);
+      setError("GitHub signup failed. Please try again.");
+      setLoading(false);
+    }
+  };
+
   return (
     <main className="auth-page">
-      {/* Left Side */}
+
+      {/* LEFT SIDE */}
+
       <section className="auth-visual">
         <div className="grid-bg" />
 
@@ -25,7 +124,9 @@ export default function SignupPage() {
         </div>
 
         <div className="visual-content">
-          <p className="eyebrow">YOUR AI DOCUMENT WORKSPACE</p>
+          <p className="eyebrow">
+            YOUR AI DOCUMENT WORKSPACE
+          </p>
 
           <h2>
             Read less.
@@ -41,6 +142,7 @@ export default function SignupPage() {
           <div className="features">
             <div className="feature">
               <div className="feature-icon">✦</div>
+
               <div>
                 <strong>AI-powered summaries</strong>
                 <p>Get the important points without reading every page.</p>
@@ -49,6 +151,7 @@ export default function SignupPage() {
 
             <div className="feature">
               <div className="feature-icon">⌕</div>
+
               <div>
                 <strong>Context-aware answers</strong>
                 <p>Ask questions directly against your documents.</p>
@@ -57,6 +160,7 @@ export default function SignupPage() {
 
             <div className="feature">
               <div className="feature-icon">◈</div>
+
               <div>
                 <strong>One secure workspace</strong>
                 <p>Keep your research and documents organized.</p>
@@ -71,9 +175,11 @@ export default function SignupPage() {
         </div>
       </section>
 
-      {/* Right Side */}
+      {/* RIGHT SIDE */}
+
       <section className="auth-form-section">
         <div className="auth-card">
+
           <div className="mobile-brand">
             <div className="brand-icon">
               <svg
@@ -89,6 +195,7 @@ export default function SignupPage() {
                 <path d="M8 13h8M8 17h5" />
               </svg>
             </div>
+
             DocMind AI
           </div>
 
@@ -102,13 +209,23 @@ export default function SignupPage() {
             </p>
           </div>
 
+          {/* SOCIAL SIGNUP */}
+
           <div className="social-buttons">
-            <button type="button">
+            <button
+              type="button"
+              onClick={handleGoogleSignup}
+              disabled={loading}
+            >
               <span className="google-icon">G</span>
               Continue with Google
             </button>
 
-            <button type="button">
+            <button
+              type="button"
+              onClick={handleGithubSignup}
+              disabled={loading}
+            >
               <span className="github-icon">●</span>
               Continue with GitHub
             </button>
@@ -120,41 +237,84 @@ export default function SignupPage() {
             <span />
           </div>
 
-          <form className="auth-form">
+          {/* EMAIL SIGNUP */}
+
+          <form
+            className="auth-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSignup();
+            }}
+          >
             <div className="input-group">
               <label>Full name</label>
+
               <input
                 type="text"
                 placeholder="Your name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                disabled={loading}
               />
             </div>
 
             <div className="input-group">
               <label>Email address</label>
+
               <input
                 type="email"
                 placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={loading}
               />
             </div>
 
             <div className="input-group">
               <label>Password</label>
+
               <input
                 type="password"
                 placeholder="Minimum 8 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={loading}
               />
             </div>
 
             <div className="input-group">
               <label>Confirm password</label>
+
               <input
                 type="password"
                 placeholder="Repeat your password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                disabled={loading}
               />
             </div>
 
-            <button className="primary-button" type="button">
-              Create account
+            {error && (
+              <p
+                style={{
+                  color: "#f87171",
+                  fontSize: "13px",
+                }}
+              >
+                {error}
+              </p>
+            )}
+
+            <button
+              className="primary-button"
+              type="submit"
+              disabled={loading}
+            >
+              {loading ? "Creating account..." : "Create account"}
             </button>
           </form>
 
@@ -168,6 +328,7 @@ export default function SignupPage() {
             <span>Terms of Service</span> and{" "}
             <span>Privacy Policy</span>.
           </p>
+
         </div>
       </section>
     </main>
