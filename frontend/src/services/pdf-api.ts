@@ -1,5 +1,7 @@
 // import { buffer } from "stream/consumers";
 
+import { authClient } from "@/lib/auth-client";
+
 const API_URL = process.env.API_URL || "http://127.0.0.1:8000";
 
 export async function Upload_Pdf(file: File) {
@@ -11,6 +13,7 @@ export async function Upload_Pdf(file: File) {
   // print("api url is :: ", API_URL);
   const response = await fetch(`${API_URL}/upload`, {
     method: "POST",
+    headers: await getAuthHeaders(), 
     body: formdata,
   });
 
@@ -20,6 +23,12 @@ export async function Upload_Pdf(file: File) {
   }
 
   return response.json();
+}
+
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const session = await authClient.getSession();
+  const token = (session.data as any)?.session?.token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 export type StreamEvent =
