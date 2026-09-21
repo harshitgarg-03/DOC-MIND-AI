@@ -9,9 +9,12 @@ export default function PdfPreview({
   fileUrl,
   pdfName,
   onRemove,
+  activePage
 }: PdfPreviewProps) {
   const name = pdfName || "document.pdf";
   const size = file ? formatFileSize(file.size) : null;
+
+  const previewSrc = activePage ? `${fileUrl}#page=${activePage.page}` : fileUrl;
 
   return (
     <div className="pdf-preview">
@@ -48,7 +51,8 @@ export default function PdfPreview({
       <div className="preview-content">
         <div className="pdf-frame-container">
           <iframe
-            src={fileUrl}
+            key={activePage ? `${activePage.page}-${activePage.nonce}` : "default"}
+            src={previewSrc}
             title={`PDF Preview: ${name}`}
             className="pdf-iframe"
           />

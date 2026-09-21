@@ -13,6 +13,7 @@ export default function ChatPanel({
   onQueryChange,
   onSend,
   pdfName,
+  onCitationClick,
 }: chatPanleProps) {
   const handleChipClick = (text: string) => {
     onQueryChange(text);
@@ -34,6 +35,7 @@ export default function ChatPanel({
         chatEndRef={chatEndRef}
         onChipClick={handleChipClick}
         pdfName={pdfName}
+        onCitationClick={onCitationClick}
       />
 
       <ChatInput

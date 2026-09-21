@@ -10,6 +10,7 @@ export default function MessageList({
   chatEndRef,
   onChipClick,
   pdfName,
+  onCitationClick,
 }: MessageListProps) {
   const name = pdfName || "document.pdf";
   const chips = getSuggestedChips();
@@ -51,7 +52,7 @@ export default function MessageList({
       )}
 
       {messages.map((msg) => (
-        <ChatMessage key={msg.id} message={msg} />
+        <ChatMessage key={msg.id} message={msg} onCitationClick={onCitationClick} />
       ))}
 
       {isTyping && <TypingIndicator />}

@@ -1,11 +1,22 @@
 "use client";
 
 import type { Props } from "@/types/pdf";
-import { User, Sparkles } from "lucide-react";
-import React from "react";
+import { User, Sparkles, Copy, Check } from "lucide-react";
+import React, { useState } from "react";
 
-export default function ChatMessage({ message }: Props) {
+export default function ChatMessage({ message, onCitationClick }: Props) {
   const isUser = message.role === "user";
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(message.text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      console.error("Copy failed:", err);
+    }
+  };
 
   return (
     <div className={`message ${isUser ? "message-user" : "message-ai"}`}>
@@ -26,9 +37,12 @@ export default function ChatMessage({ message }: Props) {
           <div className="message-citations-list">
             {message.citations.map((c) => (
               <div
+                className="message-citation-chip message-citation-chip-clickable"
                 key={c.chunk_index}
-                className="message-citation-chip"
                 title={c.preview}
+                onClick={() => onCitationClick?.(c.page)}  
+                role="button"
+                tabIndex={0}
               >
                 <span className="message-citation-index">
                   {c.chunk_index + 1}
@@ -40,6 +54,17 @@ export default function ChatMessage({ message }: Props) {
             ))}
           </div>
         </div>
+      )}
+
+      {message.text && !(!isUser && !message.text.trim()) && (
+        <button
+          className="message-copy-btn"
+          onClick={handleCopy}
+          title={copied ? "Copied!" : "Copy"}
+        >
+          {copied ? <Check size={12} /> : <Copy size={12} />}
+          <span>{copied ? "Copied" : "Copy"}</span>
+        </button>
       )}
     </div>
   );

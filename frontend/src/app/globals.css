@@ -361,12 +361,75 @@ textarea:focus-visible {
   flex-direction: column;
   height: 100%;
   z-index: 5;
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s ease, opacity 0.2s ease;
+  flex-shrink: 0;
+}
+
+@media (min-width: 901px) {
+  .app-sidebar.collapsed {
+    width: 0;
+    min-width: 0;
+    border-right: none;
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+}
+
+.sidebar-expand-btn {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 6;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--muted);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.sidebar-expand-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+@media (max-width: 900px) {
+  .sidebar-collapse-btn,
+  .sidebar-expand-btn {
+    display: none;
+  }
 }
 
 .sidebar-header {
   padding: 16px 20px;
   border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: var(--muted);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.sidebar-collapse-btn:hover {
+  color: var(--accent);
+  background: var(--accent-dim);
 }
 
 .sidebar-title {
@@ -788,6 +851,34 @@ textarea:focus-visible {
   overflow: hidden;
 }
 
+.analyzer-resizer {
+  position: relative;
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  flex-shrink: 0;
+  z-index: 3;
+}
+
+.analyzer-resizer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--border);
+  transition: background 0.2s ease, width 0.15s ease;
+}
+
+.analyzer-resizer:hover::after,
+.analyzer-resizer:active::after {
+  background: var(--accent);
+  width: 3px;
+  left: 1.5px;
+}
+
 /* --------------------------------
    REAL PDF PREVIEWER
 -------------------------------- */
@@ -1166,6 +1257,34 @@ textarea:focus-visible {
   color: #fff;
 }
 
+/* Copy button (Claude-style) */
+.message-copy-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  padding: 4px 9px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--muted);
+  border: 1px solid transparent;
+  background: transparent;
+  transition: all 0.2s ease;
+  align-self: inherit;
+  opacity: 0;
+}
+
+.message:hover .message-copy-btn {
+  opacity: 1;
+}
+
+.message-copy-btn:hover {
+  color: var(--foreground);
+  background: var(--surface-raised);
+  border-color: var(--border);
+}
+
 /* Citations (Sources) */
 .message-citations {
   margin-top: 6px;
@@ -1212,6 +1331,21 @@ textarea:focus-visible {
 .message-citation-chip:hover {
   border-color: var(--accent);
   color: var(--foreground);
+}
+
+.message-citation-chip-clickable {
+  cursor: pointer;
+}
+
+.message-citation-chip-clickable:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--foreground);
+  transform: translateY(-1px);
+}
+
+.message-citation-chip-clickable:active {
+  transform: translateY(0);
 }
 
 .message-citation-index {

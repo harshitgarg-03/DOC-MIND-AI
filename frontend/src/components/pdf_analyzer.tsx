@@ -8,9 +8,10 @@ import { deleteDocument, listDocuments, Upload_Pdf } from "@/services/pdf-api";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "./pdf-analyzer/header";
-import { FileText, FolderOpen, Plus, Trash2 } from "lucide-react";
+import { FileText, FolderOpen, Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import UploadView from "./pdf-analyzer/upload_view";
 import AnalyzerView from "./analyzer_view";
+import type { ActivePage } from "@/types/pdf";
 // import { authClient } from "@/lib/auth-client";
 
 interface DocumentItem {
@@ -48,6 +49,12 @@ export default function PdfAnalyzer() {
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  const [activePage, setActivePage] = useState<ActivePage | null>(null);
+
+  const handleCitationClick = (page: number) => {
+    setActivePage({ page, nonce: Date.now() });
+  };
 
   const { query, setQuery, message, isTyping, sendMessage, chatEndRef } =
     usePdfChat(fileName, activeDocumentId);
@@ -98,6 +105,7 @@ export default function PdfAnalyzer() {
       const res = await Upload_Pdf(uploadedFile);
       handleFileSubmit(uploadedFile);
       setActiveDocumentId(res.document_id);
+      setActivePage(null);
 
       setDocuments((prev) => {
         const exists = prev.some((d) => d.documentId === res.document_id);
@@ -155,6 +163,20 @@ export default function PdfAnalyzer() {
     }
   };
 
+  // Desktop collapse-state ko remember karo, taaki refresh pe wapas na khule
+  useEffect(() => {
+    const saved = localStorage.getItem("sidebarCollapsed");
+    if (saved === "true") setSidebarCollapsed(true);
+  }, []);
+
+  const toggleSidebarCollapse = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("sidebarCollapsed", String(next));
+      return next;
+    });
+  };
+
   return (
     <div className="pdf-analyzer">
       <Header
@@ -171,12 +193,20 @@ export default function PdfAnalyzer() {
           onClick={() => setSidebarOpen(false)}
         />
 
-        <aside className={`app-sidebar ${sidebarOpen ? "open" : ""}`}>
+        <aside className={`app-sidebar ${sidebarOpen ? "open" : ""} ${sidebarCollapsed ? "collapsed" : ""}`}>
           <div className="sidebar-header">
             <h2 className="sidebar-title">
               <FolderOpen size={14} />
               <span>Workspace Files</span>
             </h2>
+            <button
+              className="sidebar-collapse-btn"
+              onClick={toggleSidebarCollapse}
+              title="Collapse sidebar"
+              aria-label="Collapse sidebar"
+            >
+              <ChevronLeft size={14} />
+            </button>
           </div>
           <div className="sidebar-content">
             {documents.length === 0 ? (
@@ -197,6 +227,7 @@ export default function PdfAnalyzer() {
                     setFileName(doc.name);
                     setFile(null);
                     setActiveDocumentId(doc.documentId);
+                    setActivePage(null);
                     setSidebarOpen(false);
                   }}
                 >
@@ -237,6 +268,17 @@ export default function PdfAnalyzer() {
           </div>
         </aside>
 
+        {sidebarCollapsed && (
+          <button
+            className="sidebar-expand-btn"
+            onClick={toggleSidebarCollapse}
+            title="Expand sidebar"
+            aria-label="Expand sidebar"
+          >
+            <ChevronRight size={14} />
+          </button>
+        )}
+
         <main className="main-workspace">
           {!fileUrl ? (
             <UploadView
@@ -256,9 +298,12 @@ export default function PdfAnalyzer() {
               query={query}
               isTyping={isTyping}
               chatEndRef={chatEndRef}
+              activePage={activePage}
+              onCitationClick={handleCitationClick}
               onRemove={() => {
                 removePdf();
                 setActiveDocumentId(null);
+                setActivePage(null);
               }}
               onQueryChange={setQuery}
               onSend={sendMessage}
