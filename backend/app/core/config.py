@@ -18,7 +18,7 @@ CHUNK_OVERLAP = 100
 
 DISTANCE_THRESHOLD = 1.15
 
-REDIS_URL = os.getenv("REDIS_URL")
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 EMBEDDING_CACHE_TTL = 60 * 60 * 24 * 30 # again pdf upload k liye 30 days
 ANSWER_CACHE_TTL = 60 * 60 * 6 # 6 hours answer k 
 DOCUMENTS_LIST_CACHE_TTL = 60 * 2  # 2 mins k liye 
