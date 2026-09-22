@@ -18,6 +18,21 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+  
+  redis:
+    image: redis:7-alpine
+    container_name: pdf_analyzer_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   pdf_analyzer_pgdata:
+  redis_data:
