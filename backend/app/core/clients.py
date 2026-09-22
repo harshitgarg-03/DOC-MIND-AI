@@ -3,6 +3,8 @@ import chromadb
 from chromadb.utils import embedding_functions
 
 from app.core.config import GEMINI_API_KEY, CHROMA_PATH, EMBEDDING_MODEL
+from app.core.cache import cache_get, cache_set, embedding_cache_key
+from app.core.config import EMBEDDING_CACHE_TTL
 
 genai_client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -17,8 +19,18 @@ def embed_texts_individually(texts: list[str]) -> list[list[float]]:
     Isliye har text ka embedding alag call mein banate hain."""
     embeddings = []
     for text in texts:
+        key = embedding_cache_key(text)
+        cached = cache_get(key)
+
+        if cached is not None:
+            embeddings.append(cached)
+            continue
+
+
         result = embedder([text])   # ek baar mein sirf 1 text
-        embeddings.append(result[0])
+        embedding = result[0]
+        cache_set(key, embedding, EMBEDDING_CACHE_TTL)
+        embeddings.append(embedding)
     return embeddings
 
 chroma_client = chromadb.PersistentClient(path=CHROMA_PATH)
