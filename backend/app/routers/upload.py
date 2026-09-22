@@ -4,6 +4,8 @@ import logging
 import os
 import io
 
+from app.core.cache import cache_delete_pattern, documents_list_cache_key
+
 from fastapi import APIRouter, File, UploadFile, Depends, HTTPException, Request
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
@@ -104,6 +106,7 @@ def upload_pdf(request: Request, file: UploadFile = File(...), db:Session = Depe
         user_id=user_id,
     )
 
+    cache_delete_pattern(documents_list_cache_key(user_id))  
     return {
         "status": "success",
         "document_id": document_id,
