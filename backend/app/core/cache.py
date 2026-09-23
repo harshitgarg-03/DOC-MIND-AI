@@ -47,23 +47,22 @@ def embedding_cache_key(text: str) -> str:
 
 def answer_cache_key(document_id: str, question: str, history: list[dict] | None = None) -> str:
     """
-    Har unique (document + question + conversation-context) combination ke
-    liye alag cache-key. History badalte hi (naya follow-up-chain), naya
-    key banता hai — isliye stale/wrong-context wala cached-answer kabhi
-    galti se reuse nahi hoga.
+    Cache key = document_id + normalized question ONLY.
+
+    IMPORTANT (fixed bug): history ko pehle key mein include kiya jaata tha,
+    lekin har naye Q&A ke baad `save_message()` history mein ek naya turn
+    jod deta hai — isliye agla request (chahe *same* question ho) hamesha
+    ek naya history_hash produce karta tha, jisse cache kabhi HIT hi nahi
+    hota tha (permanent cache miss).
+
+    `history` param ab sirf backward-compatibility ke liye rakha hai
+    (purane call-sites na todne ke liye) — key computation mein use nahi
+    hota. Follow-up/context-awareness already `build_prompt()` mein history
+    ko prompt ke andar daal ke handle ho raha hai; wahi is data ka sahi
+    jagah hai, cache-key nahi.
     """
     normalized_question = question.strip().lower()
-
-    if history:
-        history_repr = "|".join(
-            f"{m.get('role', '')}:{m.get('text', '').strip().lower()}"
-            for m in history
-        )
-        history_hash = _hash_key(history_repr)
-    else:
-        history_hash = "no-history"   # fixed constant — pehla-question hamesha isी bucket mein
-
-    return f"qa:{document_id}:{history_hash}:{_hash_key(normalized_question)}"
+    return f"qa:{document_id}:{_hash_key(normalized_question)}"
 
 def documents_list_cache_key(user_id: str) -> str:
     return f"docs:{user_id}"

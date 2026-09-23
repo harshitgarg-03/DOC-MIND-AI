@@ -1,8 +1,8 @@
-import uuid
 import logging
 
 import os
 import io
+import hashlib
 
 from app.core.cache import cache_delete_pattern, documents_list_cache_key
 
@@ -12,7 +12,7 @@ from pypdf.errors import PdfReadError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.registry import add_document
+from app.core.registry import add_document, get_document
 from app.core.clients import collection, embed_texts_individually
 from app.services.pdf_extractor import extract_pages
 from app.services.chunker import chunk_with_metadata
@@ -36,9 +36,28 @@ def upload_pdf(request: Request, file: UploadFile = File(...), db:Session = Depe
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
 
 
-    document_id = str(uuid.uuid4())
-
     file_bytes = file.file.read()
+
+    # Deterministic document_id = hash(user_id + file content).
+    # Same user re-uploading the exact same PDF bytes always gets the SAME
+    # document_id -> we can skip re-embedding/re-storing entirely, and the
+    # QA answer-cache (keyed on document_id) will actually HIT on repeat
+    # questions instead of always missing because of a fresh random uuid.
+    file_hash = hashlib.sha256(file_bytes).hexdigest()
+    document_id = hashlib.sha256(f"{user_id}:{file_hash}".encode("utf-8")).hexdigest()[:32]
+
+    existing_doc = get_document(db, document_id, user_id)
+    if existing_doc:
+        logger.info(f"Duplicate upload detected for user {user_id} — reusing document_id={document_id}")
+        return {
+            "status": "success",
+            "document_id": existing_doc.document_id,
+            "filename": existing_doc.filename,
+            "characters_extracted": 0,  # not re-extracted; cached document reused
+            "total_pdf_chunks": existing_doc.total_chunks,
+            "total_pages": existing_doc.total_pages,
+        }
+
     try:
         reader = PdfReader(io.BytesIO(file_bytes))
     except PdfReadError:
