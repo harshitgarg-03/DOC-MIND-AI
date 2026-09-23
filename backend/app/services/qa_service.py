@@ -68,6 +68,7 @@ async def stream_answer(question: str, document_id: str, graph_state: dict, db: 
 
     cached = cache_get(cache_key)
     if cached:
+        print("🟢 QA CACHE HIT")
         logger.info(f"Cache HIT for document {document_id} (history_len={len(history)})")
 
         cached_answer = cached["answer"]
@@ -83,6 +84,7 @@ async def stream_answer(question: str, document_id: str, graph_state: dict, db: 
         save_message(db, document_id, role="assistant", text=cached_answer, citations=cached["citations"])
         return
 
+    print("🔴 QA CACHE MISS")
     prompt = graph_state["prompt"]
     relevant_chunks = graph_state["chunks"]
     relevant_metadata = graph_state["metadata"]

@@ -23,13 +23,15 @@ def embed_texts_individually(texts: list[str]) -> list[list[float]]:
         cached = cache_get(key)
 
         if cached is not None:
+            print(f"🟢 EMBEDDING CACHE HIT | key={key[:30]}...")
             embeddings.append(cached)
             continue
 
-
+        print(f"🔴 EMBEDDING CACHE MISS | key={key[:30]}...")
         result = embedder([text])   # ek baar mein sirf 1 text
         embedding = result[0]
         cache_set(key, embedding, EMBEDDING_CACHE_TTL)
+        print(f"💾 EMBEDDING SAVED TO CACHE | key={key[:30]}...")
         embeddings.append(embedding)
     return embeddings
 

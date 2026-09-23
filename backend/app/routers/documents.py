@@ -20,12 +20,16 @@ def listDocuments(db: Session = Depends(get_db), user_id: str = Depends(get_curr
 
     cached = cache_get(cache_key)
     if cached is not None:
+        print(f"🟢 DOCUMENTS CACHE HIT | user={user_id}")
         return {"documents": cached}
+
+    print(f"🔴 DOCUMENTS CACHE MISS | user={user_id}")
 
     docs = get_allDocs(db, user_id)
     result = [d.to_dict() for d in docs]
 
     cache_set(cache_key, result, DOCUMENTS_LIST_CACHE_TTL)
+    print(f"💾 DOCUMENTS SAVED TO CACHE | user={user_id}")
     return {"documents": result}
 
 
@@ -42,6 +46,10 @@ def DeleteDocuments(document_id: str, db: Session = Depends(get_db), user_id: st
     delete_document(db, document_id)
 
     cache_delete_pattern(documents_list_cache_key(user_id))   # NAYA — cache turant invalidate
+    print(
+        f"🗑️ DOCUMENTS CACHE INVALIDATED | "
+        f"user={user_id} | document={document_id}"
+    )
 
     return {"status": "deleted", "document_id": document_id}
 
