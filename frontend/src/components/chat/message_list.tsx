@@ -52,7 +52,8 @@ export default function MessageList({
       )}
 
       {messages.map((msg) => (
-        <ChatMessage key={msg.id} message={msg} onCitationClick={onCitationClick} />
+        <ChatMessage key={msg.id} message={msg} onCitationClick={onCitationClick} onSuggestionClick={onChipClick} />
+        
       ))}
 
       {isTyping && <TypingIndicator />}

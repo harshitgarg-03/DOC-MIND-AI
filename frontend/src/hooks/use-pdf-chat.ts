@@ -118,6 +118,7 @@ export function usePdfChat(
     let displayed = "";
     let queue = "";
     let citations: Message["citations"];
+    let suggestions: Message["suggestions"];
     let streamEnded = false;
     let streamErrored = false;
 
@@ -154,6 +155,7 @@ export function usePdfChat(
                   ? "Sorry! Unable to generate response for now."
                   : displayed,
                 citations: streamErrored ? undefined : citations,
+                suggestions: streamErrored ? undefined : suggestions, 
               },
         ),
       );
@@ -169,6 +171,9 @@ export function usePdfChat(
 
         if (event.type === "citations") {
           citations = event.value;
+        }
+        if (event.type === "suggestions") {  
+          suggestions = event.value;
         }
       }
     } catch (error) {

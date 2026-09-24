@@ -34,7 +34,8 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 
 export type StreamEvent =
   | { type: "token"; value: string }
-  | { type: "citations"; value: import("@/types/pdf").Citation[] };
+  | { type: "citations"; value: import("@/types/pdf").Citation[] }
+  | { type: "suggestions"; value: string[] }; 
 
 export async function* Ask_Question(
   question: string, documentId: string, history: {role: string, text:string}[] = []
@@ -84,6 +85,9 @@ export async function* Ask_Question(
         }
         if (data.citations) {
           yield { type: "citations", value: data.citations };
+        }
+        if (data.suggestions) {
+          yield { type: "suggestions", value: data.suggestions };
         }
         if (data.error) {
           throw new Error(data.error);

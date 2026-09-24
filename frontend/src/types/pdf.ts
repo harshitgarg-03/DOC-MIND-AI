@@ -23,6 +23,7 @@ export interface Message {
   role: "user" | "assistant";
   text: string;
   citations?: Citation[];
+  suggestions?: string[];
 }
 
 export interface ActivePage {
@@ -98,6 +99,7 @@ export interface analyzerProps {
 export interface Props {
   message: Message;
   onCitationClick?: (page: number) => void; 
+  onSuggestionClick?: (text: string) => void;
 }
 export interface UploadViewProps {
   onFileSelect: (file: File) => void;

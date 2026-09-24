@@ -4,7 +4,11 @@ import type { Props } from "@/types/pdf";
 import { User, Sparkles, Copy, Check } from "lucide-react";
 import React, { useState } from "react";
 
-export default function ChatMessage({ message, onCitationClick }: Props) {
+export default function ChatMessage({
+  message,
+  onCitationClick,
+  onSuggestionClick,
+}: Props) {
   const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
 
@@ -40,7 +44,7 @@ export default function ChatMessage({ message, onCitationClick }: Props) {
                 className="message-citation-chip message-citation-chip-clickable"
                 key={c.chunk_index}
                 title={c.preview}
-                onClick={() => onCitationClick?.(c.page)}  
+                onClick={() => onCitationClick?.(c.page)}
                 role="button"
                 tabIndex={0}
               >
@@ -53,6 +57,20 @@ export default function ChatMessage({ message, onCitationClick }: Props) {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {!isUser && message.suggestions && message.suggestions.length > 0 && (
+        <div className="message-suggestions">
+          {message.suggestions.map((s, idx) => (
+            <button
+              key={idx}
+              className="suggested-chip"
+              onClick={() => onSuggestionClick?.(s)}
+            >
+              {s}
+            </button>
+          ))}
         </div>
       )}
 
