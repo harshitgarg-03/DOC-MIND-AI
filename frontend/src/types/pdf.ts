@@ -16,6 +16,7 @@ export interface Citation {
   page: number;
   section: string;
   preview: string;
+  text: string;
 }
 
 export interface Message {
@@ -29,6 +30,7 @@ export interface Message {
 export interface ActivePage {
   page: number;
   nonce: number;
+  highlightText?: string;
 }
 
 export interface PdfState {
@@ -62,7 +64,7 @@ export interface MessageListProps {
   chatEndRef: React.RefObject<HTMLDivElement | null>;
   onChipClick?: (text: string) => void;
   pdfName?: string | null;
-  onCitationClick?: (page: number) => void;
+  onCitationClick?: (page: number, text?: string) => void;
 }
 export interface chatINputProps {
   query: string;
@@ -78,7 +80,7 @@ export interface chatPanleProps {
   onQueryChange: (value: string) => void;
   onSend: () => void;
   pdfName?: string | null;
-  onCitationClick?: (page: number) => void;
+  onCitationClick?: (page: number, text?: string) => void;
 }
 export interface analyzerProps {
   file: File | null;
@@ -91,14 +93,14 @@ export interface analyzerProps {
   fileSize?: number | string | null;
 
   activePage?: ActivePage | null;   
-  onCitationClick?: (page: number) => void;   
+  onCitationClick?: (page: number, text?: string) => void;   
   onRemove: () => void;
   onQueryChange: (value: string) => void;
   onSend: () => void;
 }
 export interface Props {
   message: Message;
-  onCitationClick?: (page: number) => void; 
+  onCitationClick?: (page: number, text?: string) => void; 
   onSuggestionClick?: (text: string) => void;
 }
 export interface UploadViewProps {

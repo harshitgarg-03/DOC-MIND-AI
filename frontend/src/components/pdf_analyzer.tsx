@@ -52,8 +52,8 @@ export default function PdfAnalyzer() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [activePage, setActivePage] = useState<ActivePage | null>(null);
 
-  const handleCitationClick = (page: number) => {
-    setActivePage({ page, nonce: Date.now() });
+  const handleCitationClick = (page: number, text?: string) => {
+    setActivePage({ page, nonce: Date.now(), highlightText: text });
   };
 
   const { query, setQuery, message, isTyping, sendMessage, chatEndRef } =

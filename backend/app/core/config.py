@@ -11,7 +11,7 @@ if not GEMINI_API_KEY:
 CHROMA_PATH = "./chroma_db"
 EMBEDDING_MODEL = "gemini-embedding-2"
 # CHAT_MODEL = "gemini-3.1-flash-lite"  # verify actual model name against Gemini docs
-CHAT_MODEL = "gemini-2.5-flash"
+CHAT_MODEL = "gemini-3.5-flash-lite"
 MAX_CONTEXT_CHUNKS = 7
 CHUNK_SIZE = 800
 CHUNK_OVERLAP = 100

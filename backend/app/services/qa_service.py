@@ -54,7 +54,6 @@ Respond ONLY with a JSON array of 3 strings, nothing else. Example:
 def build_prompt(question: str, relevant_chunks: list[str], history: list[dict]) -> str:
     context = "\n\n---\n\n".join(relevant_chunks)
 
-
     history_text = ""
     if history:
         turns = []
@@ -64,6 +63,11 @@ def build_prompt(question: str, relevant_chunks: list[str], history: list[dict])
         history_text = "\n".join(turns)
 
     prompt = f"""Answer the question based on the context provided below. If the answer is not available in the context, say "This information was not found in the document."
+
+            Formatting rules:
+            - Wrap the most important words, phrases, numbers, names, or technical terms in **double asterisks** (markdown bold) — exactly like a key-term highlight, so the reader's eye is drawn to the core answer at a glance.
+            - Do not bold entire sentences — only the specific key terms/phrases that directly answer the question.
+            - Keep it natural: 1-4 bolded spans per paragraph is usually enough. Don't over-bold.
 
             Context:
             {context}
@@ -80,7 +84,7 @@ def build_prompt(question: str, relevant_chunks: list[str], history: list[dict])
             {question}
             """
     return prompt
-    
+ 
 async def stream_answer(question: str, document_id: str, graph_state: dict, db: Session):
 
     if not graph_state.get("is_relevant"):
@@ -142,6 +146,7 @@ async def stream_answer(question: str, document_id: str, graph_state: dict, db: 
             "page": meta.get("page"),
             "section": meta.get("section"),
             "preview": (doc[:180].strip() + "..." if len(doc) > 180 else doc.strip()),
+            "text": doc.strip(),
         }
         for i, (doc, meta) in enumerate(zip(relevant_chunks, relevant_metadata))
     ]

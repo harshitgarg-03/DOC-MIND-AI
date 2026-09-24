@@ -44,7 +44,7 @@ export default function ChatMessage({
                 className="message-citation-chip message-citation-chip-clickable"
                 key={c.chunk_index}
                 title={c.preview}
-                onClick={() => onCitationClick?.(c.page)}
+                onClick={() => onCitationClick?.(c.page, c.text)}
                 role="button"
                 tabIndex={0}
               >
