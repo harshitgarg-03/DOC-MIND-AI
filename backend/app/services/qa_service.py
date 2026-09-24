@@ -20,6 +20,37 @@ Question:
 {question}
 """
 
+def generate_follow_up_questions(question: str, answer: str, relevant_chunks: list[str]) -> list[str] :
+     """Answer ke baad 3 chhote follow-up questions generate karta hai
+    (ChatGPT/Claude jaisa 'suggested next questions'). Fast rakhne ke
+    liye non-streaming call, context truncate karke."""
+
+     context = "\n---\n".join(relevant_chunks)[:3000]
+
+     prompt = f"""Based on the document context, the user's question, and the answer given, suggest exactly 3 short, natural follow-up questions the user might ask next. Questions should be specific to the document content, not generic.
+
+Context:
+{context}
+
+Question: {question}
+Answer: {answer[:800]}
+
+Respond ONLY with a JSON array of 3 strings, nothing else. Example:
+["question 1", "question 2", "question 3"]"""
+
+     try:
+        response = genai_client.models.generate_content(model=CHAT_MODEL, contents=prompt)
+        text = (response.text or "").strip()
+        text = text.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        suggestions = json.loads(text)
+        if isinstance(suggestions, list):
+            return [str(s) for s in suggestions[:3]]
+     except Exception:
+        logger.exception("Follow-up question generation failed — skipping suggestions")
+
+     return []
+     
+
 def build_prompt(question: str, relevant_chunks: list[str], history: list[dict]) -> str:
     context = "\n\n---\n\n".join(relevant_chunks)
 
@@ -77,6 +108,7 @@ async def stream_answer(question: str, document_id: str, graph_state: dict, db: 
             await asyncio.sleep(0.01)
 
         yield {"data": json.dumps({"citations": cached["citations"]})}
+        yield {"data": json.dumps({"suggestions": cached.get("suggestions", [])})}
         yield {"data": json.dumps({"done": True, "chunk_used": len(cached["citations"]), "cached": True})}
 
         save_message(db, document_id, role="user", text=question)
@@ -115,10 +147,12 @@ async def stream_answer(question: str, document_id: str, graph_state: dict, db: 
     ]
 
     yield {"data": json.dumps({"citations": citations})}
+
+    suggestions = generate_follow_up_questions(question, full_answer, relevant_chunks) 
+    yield {"data": json.dumps({"suggestions": suggestions})}
+
     yield {"data": json.dumps({"done": True, "chunk_used": len(relevant_chunks)})}
 
-    # BADLA — ab hamesha cache set hoga (guard hataya), key khud context-differentiate kar देगi
-    cache_set(cache_key, {"answer": full_answer, "citations": citations}, ANSWER_CACHE_TTL)
-
+    cache_set(cache_key, {"answer": full_answer, "citations": citations, "suggestions": suggestions}, ANSWER_CACHE_TTL)
     save_message(db, document_id, role="user", text=question)
     save_message(db, document_id, role="assistant", text=full_answer, citations=citations)
