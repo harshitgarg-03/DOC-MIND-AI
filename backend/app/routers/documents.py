@@ -43,8 +43,9 @@ def DeleteDocuments(document_id: str, db: Session = Depends(get_db), user_id: st
     if existing["ids"]:
         collection.delete(ids=existing["ids"])
 
-    delete_document(db, document_id)
+    delete_document(db, document_id, user_id)
 
+    delete_document(db, document_id, user_id)
     cache_delete_pattern(documents_list_cache_key(user_id))   # NAYA — cache turant invalidate
     print(
         f"🗑️ DOCUMENTS CACHE INVALIDATED | "
