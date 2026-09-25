@@ -20,7 +20,7 @@ export const auth = betterAuth({
     github: {
       clientId: process.env.GITHUB_OAUTH_ID as string,
       clientSecret: process.env.GITHUB_OAUTH_SECRET as string,
-    },
+    }, 
   },
 
   plugins: [jwt()],
