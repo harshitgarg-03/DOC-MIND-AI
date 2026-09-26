@@ -45,24 +45,18 @@ def cache_delete_pattern(pattern: str):
 def embedding_cache_key(text: str) -> str:
     return f"emb:{_hash_key(text)}"
 
-def answer_cache_key(document_id: str, question: str, history: list[dict] | None = None) -> str:
+def answer_cache_key(document_ids: list[str], question: str, mode: str = "single") -> str:
     """
-    Cache key = document_id + normalized question ONLY.
+    Cache key = mode + sorted(document_ids) + normalized question.
 
-    IMPORTANT (fixed bug): history ko pehle key mein include kiya jaata tha,
-    lekin har naye Q&A ke baad `save_message()` history mein ek naya turn
-    jod deta hai — isliye agla request (chahe *same* question ho) hamesha
-    ek naya history_hash produce karta tha, jisse cache kabhi HIT hi nahi
-    hota tha (permanent cache miss).
-
-    `history` param ab sirf backward-compatibility ke liye rakha hai
-    (purane call-sites na todne ke liye) — key computation mein use nahi
-    hota. Follow-up/context-awareness already `build_prompt()` mein history
-    ko prompt ke andar daal ke handle ho raha hai; wahi is data ka sahi
-    jagah hai, cache-key nahi.
+    Sorted isliye taaki [docA, docB] aur [docB, docA] same cache-key den
+    (order matter nahi karna chahiye compare-mode mein).
+    `mode` isliye key mein hai taaki agar kal same document_id single-mode
+    aur compare-mode dono mein use ho, unke answers alag cache slots mein
+    rahein (strict vs non-strict prompt se answer text alag hota hai).
     """
     normalized_question = question.strip().lower()
-    return f"qa:{document_id}:{_hash_key(normalized_question)}"
-
+    doc_key = ",".join(sorted(document_ids))
+    return f"qa:{mode}:{_hash_key(doc_key)}:{_hash_key(normalized_question)}"
 def documents_list_cache_key(user_id: str) -> str:
     return f"docs:{user_id}"

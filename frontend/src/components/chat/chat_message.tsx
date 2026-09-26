@@ -52,7 +52,7 @@ export default function ChatMessage({
                   {c.chunk_index + 1}
                 </span>
                 <span className="message-citation-preview">
-                  {c.page} · {c.section}
+                  {c.document_label ? `${c.document_label} · ` : ""}Page {c.page} · {c.section}
                 </span>
               </div>
             ))}

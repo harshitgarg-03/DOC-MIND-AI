@@ -37,13 +37,18 @@ export type StreamEvent =
   | { type: "citations"; value: import("@/types/pdf").Citation[] }
   | { type: "suggestions"; value: string[] }; 
 
+  
 export async function* Ask_Question(
-  question: string, documentId: string, history: {role: string, text:string}[] = []
+  question: string,
+  documentIds: string[],
+  history: { role: string; text: string }[] = []
 ): AsyncGenerator<StreamEvent> {
   const formdata = new FormData();
 
   formdata.append("question", question);
-  formdata.append("document_id", documentId);
+  // Hamesha document_ids (array) bhejo — single-doc case bhi ek-element
+  // array hi hota hai. Backend dono handle karta hai.
+  formdata.append("document_ids", JSON.stringify(documentIds));
   formdata.append("history", JSON.stringify(history));
 
   const response = await fetch(`${API_URL}/ask`, {
@@ -66,14 +71,12 @@ export async function* Ask_Question(
     if (done) break;
 
     buffer += decoder.decode(value, { stream: true });
-
     buffer = buffer.replace(/\r\n/g, "\n");
 
     const events = buffer.split("\n\n");
     buffer = events.pop() || "";
 
     for (const event of events) {
-      // Block ke andar se "data:" wali line nikalo, poore block ka check mat karo
       const lines = event.split("\n");
       const dataLine = lines.find((line) => line.startsWith("data:"));
       if (!dataLine) continue;
@@ -93,7 +96,6 @@ export async function* Ask_Question(
           throw new Error(data.error);
         }
       } catch (e) {
-        // incomplete JSON chunk — skip, agla read pe complete hoga
         continue;
       }
     }

@@ -17,8 +17,9 @@ export interface Citation {
   section: string;
   preview: string;
   text: string;
+  document_id?: string;      
+  document_label?: string; 
 }
-
 export interface Message {
   id: string;
   role: "user" | "assistant";

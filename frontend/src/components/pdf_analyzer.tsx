@@ -8,7 +8,7 @@ import { deleteDocument, listDocuments, Upload_Pdf } from "@/services/pdf-api";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "./pdf-analyzer/header";
-import { FileText, FolderOpen, Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { FileText, FolderOpen, Plus, Trash2, ChevronLeft, ChevronRight, Layers } from "lucide-react";
 import UploadView from "./pdf-analyzer/upload_view";
 import AnalyzerView from "./analyzer_view";
 import type { ActivePage } from "@/types/pdf";
@@ -51,13 +51,39 @@ export default function PdfAnalyzer() {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [activePage, setActivePage] = useState<ActivePage | null>(null);
+  const [compareMode, setCompareMode] = useState<boolean>(false);
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
 
   const handleCitationClick = (page: number, text?: string) => {
     setActivePage({ page, nonce: Date.now(), highlightText: text });
   };
 
+  const toggleCompareSelection = (documentId: string) => {
+    setSelectedDocumentIds((prev) =>
+      prev.includes(documentId)
+        ? prev.filter((id) => id !== documentId)
+        : [...prev, documentId],
+    );
+  };
+
+  const toggleCompareMode = () => {
+    setCompareMode((prev) => {
+      const next = !prev;
+      if (!next) setSelectedDocumentIds([]);
+      return next;
+    });
+  };
+
+  // Compare-mode ON hai to selected checkboxes wale documents, warna
+  // normal single active-document flow (backward-compatible)
+  const effectiveDocumentIds = compareMode
+    ? selectedDocumentIds
+    : activeDocumentId
+      ? [activeDocumentId]
+      : [];
+
   const { query, setQuery, message, isTyping, sendMessage, chatEndRef } =
-    usePdfChat(fileName, activeDocumentId);
+    usePdfChat(fileName, effectiveDocumentIds);
 
   useEffect(() => {
     const savedId = localStorage.getItem("activeDocumentId");
@@ -200,6 +226,14 @@ export default function PdfAnalyzer() {
               <span>Workspace Files</span>
             </h2>
             <button
+              className={`compare-mode-btn ${compareMode ? "active" : ""}`}
+              onClick={toggleCompareMode}
+              title="Compare multiple PDFs"
+            >
+              <Layers size={13} />
+              <span>Compare</span>
+            </button>
+            <button
               className="sidebar-collapse-btn"
               onClick={toggleSidebarCollapse}
               title="Collapse sidebar"
@@ -221,8 +255,16 @@ export default function PdfAnalyzer() {
               documents.map((doc) => (
                 <button
                   key={doc.id}
-                  className={`doc-item ${activeDocumentId === doc.documentId ? "active" : ""}`}
+                  className={`doc-item ${
+                    compareMode
+                      ? selectedDocumentIds.includes(doc.documentId) ? "active" : ""
+                      : activeDocumentId === doc.documentId ? "active" : ""
+                  }`}
                   onClick={() => {
+                    if (compareMode) {
+                      toggleCompareSelection(doc.documentId);
+                      return;
+                    }
                     setFileUrl(doc.url);
                     setFileName(doc.name);
                     setFile(null);
@@ -232,6 +274,15 @@ export default function PdfAnalyzer() {
                   }}
                 >
                   <div className="doc-item-info">
+                    {compareMode && (
+                      <input
+                        type="checkbox"
+                        className="doc-item-checkbox"
+                        checked={selectedDocumentIds.includes(doc.documentId)}
+                        onChange={() => toggleCompareSelection(doc.documentId)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    )}
                     <FileText size={15} className="doc-item-icon" />
                     <div className="doc-item-meta">
                       <span className="doc-item-name">{doc.name}</span>
@@ -280,7 +331,16 @@ export default function PdfAnalyzer() {
         )}
 
         <main className="main-workspace">
-          {!fileUrl ? (
+          {compareMode && selectedDocumentIds.length < 2 ? (
+            <div className="compare-mode-banner">
+              <Layers size={32} style={{ opacity: 0.4, marginBottom: 10 }} />
+              <p>Compare Mode ON — sidebar se kam se kam 2 PDFs select karo.</p>
+              <p className="compare-mode-hint">
+                Selected: {selectedDocumentIds.length} document
+                {selectedDocumentIds.length !== 1 ? "s" : ""}
+              </p>
+            </div>
+          ) : !fileUrl && !compareMode ? (
             <UploadView
               onFileSelect={handlePdfUpload}
               urlInput={UrlInput}
@@ -291,9 +351,17 @@ export default function PdfAnalyzer() {
             />
           ) : (
             <AnalyzerView
-              file={file}
-              fileUrl={fileUrl}
-              pdfName={fileName}
+              file={compareMode ? null : file}
+              fileUrl={
+                compareMode
+                  ? documents.find((d) => d.documentId === selectedDocumentIds[0])?.url ?? ""
+                  : fileUrl
+              }
+              pdfName={
+                compareMode
+                  ? `Comparing ${selectedDocumentIds.length} documents`
+                  : fileName
+              }
               messages={message}
               query={query}
               isTyping={isTyping}
@@ -301,9 +369,13 @@ export default function PdfAnalyzer() {
               activePage={activePage}
               onCitationClick={handleCitationClick}
               onRemove={() => {
-                removePdf();
-                setActiveDocumentId(null);
-                setActivePage(null);
+                if (compareMode) {
+                  setSelectedDocumentIds([]);
+                } else {
+                  removePdf();
+                  setActiveDocumentId(null);
+                  setActivePage(null);
+                }
               }}
               onQueryChange={setQuery}
               onSend={sendMessage}
