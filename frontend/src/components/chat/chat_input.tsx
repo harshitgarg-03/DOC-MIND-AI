@@ -3,7 +3,7 @@
 import { chatINputProps } from "@/types/pdf";
 import { Send } from "lucide-react";
 import { useEffect, useRef } from "react";
-
+ 
 export default function ChatInput({
   query,
   isTyping,
