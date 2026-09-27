@@ -12,7 +12,7 @@ class Document(Base):
     total_pages = Column(Integer, nullable=False)
     total_chunks = Column(Integer, nullable=False)
     uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-
+ 
     def to_dict(self):
         return {
             "document_id": self.document_id,
