@@ -38,6 +38,14 @@ export default function PdfPreview({
 
   const docSource = useMemo(() => file ?? fileUrl, [file, fileUrl]);
 
+  // Document badalne (compare-mode mein A <-> B) par page 1 se shuru karo.
+  // Ye effect activePage wale effect se PEHLE hai, taaki citation-click ka
+  // page-jump (jo baad mein chalta hai) isko override kar sake.
+  useEffect(() => {
+    setPageNumber(1);
+    setNumPages(0);
+  }, [fileUrl]);
+
   // Jab bhi ek naya citation click ho (activePage badle), usi page pe jump karo
   useEffect(() => {
     if (activePage?.page) {

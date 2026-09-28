@@ -3,7 +3,7 @@
 import MessageList from "./message_list";
 import ChatInput from "./chat_input";
 import type { chatPanleProps } from "@/types/pdf";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Layers } from "lucide-react";
 
 export default function ChatPanel({
   messages,
@@ -14,6 +14,7 @@ export default function ChatPanel({
   onSend,
   pdfName,
   onCitationClick,
+  compareMode,
 }: chatPanleProps) {
   const handleChipClick = (text: string) => {
     onQueryChange(text);
@@ -25,8 +26,9 @@ export default function ChatPanel({
   return (
     <div className="chat-panel">
       <div className="chat-header">
-        <MessageSquare size={16} />
-        <span>Ask AI Assistant</span>
+        {compareMode ? <Layers size={16} /> : <MessageSquare size={16} />}
+        <span>{compareMode ? "Compare with AI" : "Ask AI Assistant"}</span>
+        {compareMode && <span className="chat-header-tag">Strict · PDFs only</span>}
       </div>
 
       <MessageList
@@ -36,6 +38,7 @@ export default function ChatPanel({
         onChipClick={handleChipClick}
         pdfName={pdfName}
         onCitationClick={onCitationClick}
+        compareMode={compareMode}
       />
 
       <ChatInput

@@ -2,7 +2,7 @@
 
 import type { MessageListProps } from "@/types/pdf";
 import ChatMessage from "./chat_message";
-import { Sparkles, MessageSquare } from "lucide-react";
+import { Sparkles, MessageSquare, Layers } from "lucide-react";
 
 export default function MessageList({
   messages,
@@ -11,9 +11,10 @@ export default function MessageList({
   onChipClick,
   pdfName,
   onCitationClick,
+  compareMode,
 }: MessageListProps) {
   const name = pdfName || "document.pdf";
-  const chips = getSuggestedChips();
+  const chips = compareMode ? getCompareChips() : getSuggestedChips();
 
   return (
     <div className="message-list">
@@ -21,18 +22,30 @@ export default function MessageList({
         <div className="empty-chat">
           <div className="empty-chat-content">
             <div className="empty-icon-pill">
-              <Sparkles size={20} />
+              {compareMode ? <Layers size={20} /> : <Sparkles size={20} />}
             </div>
             <h3 className="empty-chat-title">
-              AI Assistant Ready
+              {compareMode ? "Compare your PDFs" : "AI Assistant Ready"}
             </h3>
             <p className="empty-chat-desc">
-              Ask questions, analyze key data, or summarize <strong>{name}</strong>. Select a suggested prompt below to start.
+              {compareMode ? (
+                <>
+                  Ask how the selected documents differ, which one fits better, or
+                  what they have in common. Answers use <strong>only these PDFs</strong>
+                  {" "}— no outside knowledge.
+                </>
+              ) : (
+                <>
+                  Ask questions, analyze key data, or summarize <strong>{name}</strong>. Select a suggested prompt below to start.
+                </>
+              )}
             </p>
 
             {onChipClick && (
               <div className="suggested-chips-container">
-                <span className="suggested-chips-title">Suggested Prompts</span>
+                <span className="suggested-chips-title">
+                  {compareMode ? "Try comparing" : "Suggested Prompts"}
+                </span>
                 <div className="suggested-chips-list">
                   {chips.map((chip, idx) => (
                     <button
@@ -75,6 +88,15 @@ const TypingIndicator = () => (
     </div>
   </div>
 );
+
+function getCompareChips(): string[] {
+  return [
+    "What are the key differences between these documents?",
+    "Which document is stronger overall, and why?",
+    "What do these documents have in common?",
+    "Compare the skills and experience mentioned in each.",
+  ];
+}
 
 function getSuggestedChips(): string[] {
   return [

@@ -8,10 +8,11 @@ import { deleteDocument, listDocuments, Upload_Pdf } from "@/services/pdf-api";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "./pdf-analyzer/header";
-import { FileText, FolderOpen, Plus, Trash2, ChevronLeft, ChevronRight, Layers } from "lucide-react";
+import { FileText, FolderOpen, Plus, Trash2, ChevronLeft, ChevronRight, Layers, X, ShieldCheck, Check } from "lucide-react";
 import UploadView from "./pdf-analyzer/upload_view";
 import AnalyzerView from "./analyzer_view";
 import type { ActivePage } from "@/types/pdf";
+import { getDocStyle, registerDocs } from "@/lib/doc-colors";
 // import { authClient } from "@/lib/auth-client";
 
 interface DocumentItem {
@@ -53,8 +54,14 @@ export default function PdfAnalyzer() {
   const [activePage, setActivePage] = useState<ActivePage | null>(null);
   const [compareMode, setCompareMode] = useState<boolean>(false);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
+  // Compare-mode mein PDF panel kaunsa selected document dikha raha hai
+  const [previewDocId, setPreviewDocId] = useState<string | null>(null);
 
-  const handleCitationClick = (page: number, text?: string) => {
+  const handleCitationClick = (page: number, text?: string, documentId?: string) => {
+    // Compare-mode: citation jis document ki hai, preview usi pe switch karo
+    if (compareMode && documentId && selectedDocumentIds.includes(documentId)) {
+      setPreviewDocId(documentId);
+    }
     setActivePage({ page, nonce: Date.now(), highlightText: text });
   };
 
@@ -69,10 +76,24 @@ export default function PdfAnalyzer() {
   const toggleCompareMode = () => {
     setCompareMode((prev) => {
       const next = !prev;
-      if (!next) setSelectedDocumentIds([]);
+      if (!next) {
+        setSelectedDocumentIds([]);
+        setPreviewDocId(null);
+      } else if (activeDocumentId) {
+        // Jo document abhi khula hai use pehle se select kar do
+        setSelectedDocumentIds([activeDocumentId]);
+        setPreviewDocId(activeDocumentId);
+      }
       return next;
     });
   };
+
+  // Preview-doc valid rakho: selected list mein nahi hai to pehla selected lo
+  const effectivePreviewId =
+    previewDocId && selectedDocumentIds.includes(previewDocId)
+      ? previewDocId
+      : selectedDocumentIds[0] ?? null;
+  const previewDoc = documents.find((d) => d.documentId === effectivePreviewId);
 
   // Compare-mode ON hai to selected checkboxes wale documents, warna
   // normal single active-document flow (backward-compatible)
@@ -108,6 +129,7 @@ export default function PdfAnalyzer() {
         size: 0,
         url: `${API_URL}${d.file_url}`,
       }));
+      registerDocs(restored.map((d) => d.documentId));
       setDocuments(restored);
 
       // NEW: re-select the previously active doc, if it still exists
@@ -130,6 +152,7 @@ export default function PdfAnalyzer() {
     try {
       const res = await Upload_Pdf(uploadedFile);
       handleFileSubmit(uploadedFile);
+      registerDocs([res.document_id]);
       setActiveDocumentId(res.document_id);
       setActivePage(null);
 
@@ -163,6 +186,7 @@ export default function PdfAnalyzer() {
       await deleteDocument(doc.documentId);
 
       setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
+      setSelectedDocumentIds((prev) => prev.filter((id) => id !== doc.documentId));
 
       if (activeDocumentId === doc.documentId) {
         removePdf();
@@ -228,10 +252,17 @@ export default function PdfAnalyzer() {
             <button
               className={`compare-mode-btn ${compareMode ? "active" : ""}`}
               onClick={toggleCompareMode}
-              title="Compare multiple PDFs"
+              disabled={!compareMode && documents.length < 2}
+              title={
+                documents.length < 2 && !compareMode
+                  ? "Upload at least 2 PDFs to compare"
+                  : compareMode
+                    ? "Exit compare mode"
+                    : "Compare multiple PDFs side by side"
+              }
             >
               <Layers size={13} />
-              <span>Compare</span>
+              <span>{compareMode ? "Exit" : "Compare"}</span>
             </button>
             <button
               className="sidebar-collapse-btn"
@@ -242,6 +273,31 @@ export default function PdfAnalyzer() {
               <ChevronLeft size={14} />
             </button>
           </div>
+          {compareMode ? (
+            <div className="compare-guide">
+              <div className="compare-guide-top">
+                <Layers size={13} />
+                <strong>Compare mode</strong>
+                <span className="compare-guide-count">
+                  {selectedDocumentIds.length} selected
+                </span>
+              </div>
+              <p>
+                {selectedDocumentIds.length < 2
+                  ? "Tick 2 or more PDFs below to start comparing."
+                  : "Ready — ask anything about how they differ."}
+              </p>
+            </div>
+          ) : (
+            documents.length >= 2 && (
+              <button className="compare-teaser" onClick={toggleCompareMode}>
+                <Layers size={13} />
+                <span>
+                  <strong>New:</strong> Compare 2+ PDFs with AI
+                </span>
+              </button>
+            )
+          )}
           <div className="sidebar-content">
             {documents.length === 0 ? (
               <div className="doc-list-empty">
@@ -275,13 +331,24 @@ export default function PdfAnalyzer() {
                 >
                   <div className="doc-item-info">
                     {compareMode && (
-                      <input
-                        type="checkbox"
-                        className="doc-item-checkbox"
-                        checked={selectedDocumentIds.includes(doc.documentId)}
-                        onChange={() => toggleCompareSelection(doc.documentId)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
+                      <span
+                        className={`compare-check ${
+                          selectedDocumentIds.includes(doc.documentId) ? "checked" : ""
+                        }`}
+                        style={
+                          selectedDocumentIds.includes(doc.documentId)
+                            ? {
+                                background: getDocStyle(doc.documentId).color,
+                                borderColor: getDocStyle(doc.documentId).color,
+                              }
+                            : undefined
+                        }
+                        aria-hidden="true"
+                      >
+                        {selectedDocumentIds.includes(doc.documentId) ? (
+                          getDocStyle(doc.documentId).letter
+                        ) : null}
+                      </span>
                     )}
                     <FileText size={15} className="doc-item-icon" />
                     <div className="doc-item-meta">
@@ -331,14 +398,109 @@ export default function PdfAnalyzer() {
         )}
 
         <main className="main-workspace">
+          {compareMode && (
+            <div className="compare-bar">
+              <div className="compare-bar-row">
+                <div className="compare-bar-title">
+                  <Layers size={14} />
+                  <span>Comparing</span>
+                </div>
+                <div className="compare-bar-chips">
+                  {selectedDocumentIds.length === 0 && (
+                    <span className="compare-bar-empty">No PDFs selected yet</span>
+                  )}
+                  {selectedDocumentIds.map((id) => {
+                    const doc = documents.find((d) => d.documentId === id);
+                    if (!doc) return null;
+                    const st = getDocStyle(id);
+                    const isViewing = id === effectivePreviewId;
+                    return (
+                      <div
+                        key={id}
+                        className={`compare-chip ${isViewing ? "viewing" : ""}`}
+                        style={{ borderColor: isViewing ? st.color : undefined }}
+                      >
+                        <button
+                          className="compare-chip-main"
+                          onClick={() => {
+                            setPreviewDocId(id);
+                            setActivePage(null);
+                          }}
+                          title={`View ${doc.name}`}
+                        >
+                          <span className="compare-chip-letter" style={{ background: st.color }}>
+                            {st.letter}
+                          </span>
+                          <span className="compare-chip-name">{doc.name}</span>
+                        </button>
+                        <button
+                          className="compare-chip-remove"
+                          onClick={() => toggleCompareSelection(id)}
+                          title="Remove from comparison"
+                          aria-label={`Remove ${doc.name}`}
+                        >
+                          <X size={11} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <button className="compare-bar-exit" onClick={toggleCompareMode}>
+                  <X size={12} />
+                  <span>Exit</span>
+                </button>
+              </div>
+              <div className="compare-bar-note">
+                <ShieldCheck size={12} />
+                <span>
+                  Answers use <strong>only the selected PDFs</strong> — no outside
+                  knowledge. Click a chip to preview that PDF; source badges (A, B…)
+                  show which PDF each point came from.
+                </span>
+              </div>
+            </div>
+          )}
           {compareMode && selectedDocumentIds.length < 2 ? (
-            <div className="compare-mode-banner">
-              <Layers size={32} style={{ opacity: 0.4, marginBottom: 10 }} />
-              <p>Compare Mode ON — sidebar se kam se kam 2 PDFs select karo.</p>
-              <p className="compare-mode-hint">
-                Selected: {selectedDocumentIds.length} document
-                {selectedDocumentIds.length !== 1 ? "s" : ""}
-              </p>
+            <div className="compare-picker">
+              <div className="compare-picker-hero">
+                <div className="compare-picker-icon">
+                  <Layers size={22} />
+                </div>
+                <h2>Choose PDFs to compare</h2>
+                <p>
+                  Pick at least 2 documents. Then ask things like “which one is better
+                  for an AI/ML role?” or “what are the key differences?”
+                </p>
+                <div className="compare-picker-progress">
+                  <span className={selectedDocumentIds.length >= 1 ? "done" : ""}>1</span>
+                  <i />
+                  <span className={selectedDocumentIds.length >= 2 ? "done" : ""}>2</span>
+                  <em>{selectedDocumentIds.length}/2 selected</em>
+                </div>
+              </div>
+              <div className="compare-picker-grid">
+                {documents.map((doc) => {
+                  const selected = selectedDocumentIds.includes(doc.documentId);
+                  const st = getDocStyle(doc.documentId);
+                  return (
+                    <button
+                      key={doc.id}
+                      className={`compare-card ${selected ? "selected" : ""}`}
+                      style={selected ? { borderColor: st.color } : undefined}
+                      onClick={() => toggleCompareSelection(doc.documentId)}
+                    >
+                      <span
+                        className="compare-card-badge"
+                        style={selected ? { background: st.color, borderColor: st.color } : undefined}
+                      >
+                        {selected ? st.letter : <Check size={12} style={{ opacity: 0 }} />}
+                      </span>
+                      <FileText size={18} className="compare-card-icon" />
+                      <span className="compare-card-name">{doc.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           ) : !fileUrl && !compareMode ? (
             <UploadView
@@ -350,36 +512,31 @@ export default function PdfAnalyzer() {
               onUrlSubmit={handleUrlSubmit}
             />
           ) : (
-            <AnalyzerView
-              file={compareMode ? null : file}
-              fileUrl={
-                compareMode
-                  ? documents.find((d) => d.documentId === selectedDocumentIds[0])?.url ?? ""
-                  : fileUrl
-              }
-              pdfName={
-                compareMode
-                  ? `Comparing ${selectedDocumentIds.length} documents`
-                  : fileName
-              }
-              messages={message}
-              query={query}
-              isTyping={isTyping}
-              chatEndRef={chatEndRef}
-              activePage={activePage}
-              onCitationClick={handleCitationClick}
-              onRemove={() => {
-                if (compareMode) {
-                  setSelectedDocumentIds([]);
-                } else {
-                  removePdf();
-                  setActiveDocumentId(null);
-                  setActivePage(null);
-                }
-              }}
-              onQueryChange={setQuery}
-              onSend={sendMessage}
-            />
+            <div className="main-analyzer-slot">
+              <AnalyzerView
+                file={compareMode ? null : file}
+                fileUrl={compareMode ? previewDoc?.url ?? "" : fileUrl}
+                pdfName={compareMode ? previewDoc?.name ?? null : fileName}
+                compareMode={compareMode}
+                messages={message}
+                query={query}
+                isTyping={isTyping}
+                chatEndRef={chatEndRef}
+                activePage={activePage}
+                onCitationClick={handleCitationClick}
+                onRemove={() => {
+                  if (compareMode) {
+                    toggleCompareMode();
+                  } else {
+                    removePdf();
+                    setActiveDocumentId(null);
+                    setActivePage(null);
+                  }
+                }}
+                onQueryChange={setQuery}
+                onSend={sendMessage}
+              />
+            </div>
           )}
         </main>
       </div>

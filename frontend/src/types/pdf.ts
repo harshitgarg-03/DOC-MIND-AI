@@ -17,8 +17,8 @@ export interface Citation {
   section: string;
   preview: string;
   text: string;
-  document_id?: string;      
-  document_label?: string; 
+  document_id?: string;
+  document_label?: string;
 }
 export interface Message {
   id: string;
@@ -33,6 +33,12 @@ export interface ActivePage {
   nonce: number;
   highlightText?: string;
 }
+
+export type CitationClickHandler = (
+  page: number,
+  text?: string,
+  documentId?: string,
+) => void;
 
 export interface PdfState {
   file: File | null;
@@ -65,7 +71,8 @@ export interface MessageListProps {
   chatEndRef: React.RefObject<HTMLDivElement | null>;
   onChipClick?: (text: string) => void;
   pdfName?: string | null;
-  onCitationClick?: (page: number, text?: string) => void;
+  onCitationClick?: CitationClickHandler;
+  compareMode?: boolean;
 }
 export interface chatINputProps {
   query: string;
@@ -81,7 +88,8 @@ export interface chatPanleProps {
   onQueryChange: (value: string) => void;
   onSend: () => void;
   pdfName?: string | null;
-  onCitationClick?: (page: number, text?: string) => void;
+  onCitationClick?: CitationClickHandler;
+  compareMode?: boolean;
 }
 export interface analyzerProps {
   file: File | null;
@@ -93,15 +101,16 @@ export interface analyzerProps {
   chatEndRef: React.RefObject<HTMLDivElement | null>;
   fileSize?: number | string | null;
 
-  activePage?: ActivePage | null;   
-  onCitationClick?: (page: number, text?: string) => void;   
+  activePage?: ActivePage | null;
+  onCitationClick?: CitationClickHandler;
   onRemove: () => void;
   onQueryChange: (value: string) => void;
   onSend: () => void;
+  compareMode?: boolean;
 }
 export interface Props {
   message: Message;
-  onCitationClick?: (page: number, text?: string) => void; 
+  onCitationClick?: CitationClickHandler;
   onSuggestionClick?: (text: string) => void;
 }
 export interface UploadViewProps {
@@ -120,5 +129,5 @@ export interface PdfPreviewProps {
   fileUrl: string;
   pdfName: string | null;
   onRemove: () => void;
-  activePage?: ActivePage | null; 
+  activePage?: ActivePage | null;
 }

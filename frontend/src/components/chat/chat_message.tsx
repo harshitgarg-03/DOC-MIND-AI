@@ -3,6 +3,7 @@
 import type { Props } from "@/types/pdf";
 import { User, Sparkles, Copy, Check } from "lucide-react";
 import React, { useState } from "react";
+import { getDocStyle } from "@/lib/doc-colors";
 
 export default function ChatMessage({
   message,
@@ -11,6 +12,11 @@ export default function ChatMessage({
 }: Props) {
   const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
+
+  // Citations 2+ alag documents se aayi hain => comparison answer
+  const isMultiDoc =
+    new Set((message.citations ?? []).map((c) => c.document_id).filter(Boolean))
+      .size > 1;
 
   const handleCopy = async () => {
     try {
@@ -39,23 +45,35 @@ export default function ChatMessage({
         <div className="message-citations">
           <span className="message-citations-label">Sources</span>
           <div className="message-citations-list">
-            {message.citations.map((c) => (
-              <div
-                className="message-citation-chip message-citation-chip-clickable"
-                key={c.chunk_index}
-                title={c.preview}
-                onClick={() => onCitationClick?.(c.page, c.text)}
-                role="button"
-                tabIndex={0}
-              >
-                <span className="message-citation-index">
-                  {c.chunk_index + 1}
-                </span>
-                <span className="message-citation-preview">
-                  {c.document_label ? `${c.document_label} · ` : ""}Page {c.page} · {c.section}
-                </span>
-              </div>
-            ))}
+            {message.citations.map((c) => {
+              const style = c.document_id ? getDocStyle(c.document_id) : null;
+              return (
+                <div
+                  className="message-citation-chip message-citation-chip-clickable"
+                  key={c.chunk_index}
+                  title={`${c.document_label ? c.document_label + " · " : ""}${c.preview}`}
+                  onClick={() => onCitationClick?.(c.page, c.text, c.document_id)}
+                  role="button"
+                  tabIndex={0}
+                >
+                  {isMultiDoc && style ? (
+                    <span
+                      className="message-citation-index citation-doc-badge"
+                      style={{ background: style.color }}
+                    >
+                      {style.letter}
+                    </span>
+                  ) : (
+                    <span className="message-citation-index">
+                      {c.chunk_index + 1}
+                    </span>
+                  )}
+                  <span className="message-citation-preview">
+                    Page {c.page} · {c.section}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

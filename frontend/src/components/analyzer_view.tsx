@@ -102,6 +102,7 @@ export default function AnalyzerView(props: analyzerProps) {
         onSend={props.onSend}
         pdfName={props.pdfName}
         onCitationClick={props.onCitationClick}
+        compareMode={props.compareMode}
       />
     </div>
   );
