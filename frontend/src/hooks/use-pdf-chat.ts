@@ -79,15 +79,33 @@ export function usePdfChat(
       return;
     }
 
-    const history = message.map(({ role, text }) => ({ role, text }));
+    const MAX_HISTORY_MESSAGES = 40;
+    const MAX_HISTORY_TEXT_CHARS = 2000;
 
-    const userMessage: Message = { id: crypto.randomUUID(), role: "user", text };
+    const history = message
+      .filter((m) => m.text.trim().length > 0)
+      .slice(-MAX_HISTORY_MESSAGES)
+      .map(({ role, text }) => ({
+        role,
+        text:
+          text.length > MAX_HISTORY_TEXT_CHARS
+            ? text.slice(0, MAX_HISTORY_TEXT_CHARS)
+            : text,
+      }));
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      role: "user",
+      text,
+    };
     updateMessages((prev) => [...prev, userMessage]);
     setQuery("");
     setIsTyping(true);
 
     const assistantId = crypto.randomUUID();
-    updateMessages((prev) => [...prev, { id: assistantId, role: "assistant", text: "" }]);
+    updateMessages((prev) => [
+      ...prev,
+      { id: assistantId, role: "assistant", text: "" },
+    ]);
 
     let displayed = "";
     let queue = "";
@@ -103,7 +121,9 @@ export function usePdfChat(
         displayed += chunk;
 
         updateMessages((prev) =>
-          prev.map((msg) => (msg.id === assistantId ? { ...msg, text: displayed } : msg)),
+          prev.map((msg) =>
+            msg.id === assistantId ? { ...msg, text: displayed } : msg,
+          ),
         );
         return;
       }
@@ -119,7 +139,9 @@ export function usePdfChat(
             ? msg
             : {
                 ...msg,
-                text: streamErrored ? "Sorry! Unable to generate response for now." : displayed,
+                text: streamErrored
+                  ? "Sorry! Unable to generate response for now."
+                  : displayed,
                 citations: streamErrored ? undefined : citations,
                 suggestions: streamErrored ? undefined : suggestions,
               },
