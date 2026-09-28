@@ -22,6 +22,7 @@ class RAGState(TypedDict, total=False):
     is_relevant: bool
     mode: str          # "single" ya "compare"
     prompt: str
+    history_summary: str
 
 
 def retrieve_node(state: RAGState) -> RAGState:
@@ -126,12 +127,18 @@ def prepare_prompt_node(state: RAGState) -> RAGState:
         state.get("history", []),
         strict=strict,
         doc_labels=state.get("doc_labels", {}),
+        doc_relevant=state.get("is_relevant", True),
+        history_summary=state.get("history_summary", ""),   # NAYA
     )
     return {**state, "prompt": prompt}
 
 
 def route_after_relevance(state: RAGState) -> str:
-    return "prepare_prompt" if state.get("is_relevant") else END
+    # Single-doc mode: hamesha LLM tak jao (weak match ho to bhi, taaki
+    # document-related general knowledge mil sake). Compare mode strict hai.
+    if state.get("is_relevant") or state.get("mode") == "single":
+        return "prepare_prompt"
+    return END
 
 
 graph_builder = StateGraph(RAGState)

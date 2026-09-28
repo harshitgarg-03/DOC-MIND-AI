@@ -46,6 +46,8 @@ def build_prompt(
     history: list[dict],
     strict: bool = False,
     doc_labels: dict[str, str] | None = None,
+    doc_relevant: bool = True,
+    history_summary: str = "",
 ) -> str:
     """
     strict=False (single-document mode):
@@ -88,6 +90,11 @@ def build_prompt(
             REASONING IS ALLOWED: You MAY analyze, weigh, and compare the facts that ARE present in the context to form a judgment or recommendation (e.g. "which one is better for X", "what's the key difference"). This is not outside knowledge — it's reasoning over the given facts, and you should do it confidently when the context supports a conclusion. Only avoid concluding when the context genuinely lacks enough facts to support any judgment either way — in that case, say so explicitly instead of guessing.
 
             When comparing, clearly attribute which point came from which document (the context blocks are tagged with [Document Name — Page X])."""
+    elif not doc_relevant:
+        instructions = """The user's question does not appear to be directly covered by the uploaded document. The context below is only a sample of the document, so you can judge its subject area.
+
+            - If the question is related to the document's subject area (for example the document is about Java ArrayList problems and the user asks "what is java"), answer helpfully and concisely from general knowledge. Start with this exact line: "💡 **The document doesn't directly cover this, but here's related background (general knowledge, not from this document):**" and then give the answer.
+            - If the question is completely unrelated to the document's subject area, reply briefly that it is outside the scope of this document and suggest asking something about the document instead."""
     else:
         instructions = """Answer the question about this document.
 
@@ -111,6 +118,11 @@ def build_prompt(
             {context}
             """
 
+    if history_summary:
+        prompt += f"""
+            Summary of the earlier conversation (use it only to understand what the user is referring to in follow-up questions. It is NOT a source of facts about the document(s), so never answer from it):
+            {history_summary}
+            """
     if history_text:
         prompt += f"""
             Previous conversation:
@@ -136,7 +148,7 @@ async def stream_answer(
     # pehle document ke thread mein anchor kar dete hain (simplification).
     anchor_document_id = document_ids[0]
 
-    if not graph_state.get("is_relevant"):
+    if not graph_state.get("is_relevant") and mode == "compare":
         message = "This information was not found in the document(s)."
         yield {"data": json.dumps({"token": message})}
         yield {"data": json.dumps({"citations": []})}
@@ -199,7 +211,7 @@ async def stream_answer(
             "text": doc.strip(),
         }
         for i, (doc, meta) in enumerate(zip(relevant_chunks, relevant_metadata))
-    ]
+    ] if graph_state.get("is_relevant") else []
 
     yield {"data": json.dumps({"citations": citations})}
 

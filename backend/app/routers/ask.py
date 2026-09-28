@@ -6,6 +6,7 @@ from sse_starlette.sse import EventSourceResponse
 from app.core.database import get_db
 from app.core.auth import get_current_user
 
+from app.services.chat_summary import build_history_context
 from app.core.clients import collection
 from app.services.qa_service import stream_answer
 from app.services.rag_graph import rag_graph
@@ -57,6 +58,8 @@ def ask_question(
     except (json.JSONDecodeError, TypeError):
         parsed_history = []
 
+    recent_history, history_summary = build_history_context(parsed_history)   # NAYA
+
     # Kam se kam ek document mein chunks hone chahiye
     any_chunks = False
     for doc_id in ids:
@@ -73,7 +76,8 @@ def ask_question(
     graph_state = rag_graph.invoke({
         "question": question,
         "document_ids": ids,
-        "history": parsed_history,
+        "history": recent_history,               # pehle parsed_history tha
+        "history_summary": history_summary,      # NAYA
         "doc_labels": doc_labels,
     })
 
