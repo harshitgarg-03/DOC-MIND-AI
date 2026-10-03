@@ -34,24 +34,37 @@ export default function PdfPreview({
 
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState<number>(1);
+  const [pageInput, setPageInput] = useState<string>("1");
   const [scale, setScale] = useState<number>(1.15);
 
   const docSource = useMemo(() => file ?? fileUrl, [file, fileUrl]);
 
-  // Document badalne (compare-mode mein A <-> B) par page 1 se shuru karo.
+  // Sirf tab page 1 pe jao jab asli document source badle (compare-mode A <-> B).
+  // IMPORTANT: yahan numPages ko 0 mat karo. Agar fileUrl badle lekin `file`
+  // wahi rahe, to <Document> reload nahi hota, onLoadSuccess dobara nahi chalta,
+  // aur total pages hamesha "…" dikhta rehta hai (Next button bhi disabled).
   // Ye effect activePage wale effect se PEHLE hai, taaki citation-click ka
-  // page-jump (jo baad mein chalta hai) isko override kar sake.
+  // page-jump isko override kar sake.
   useEffect(() => {
     setPageNumber(1);
-    setNumPages(0);
-  }, [fileUrl]);
+  }, [docSource]);
 
-  // Jab bhi ek naya citation click ho (activePage badle), usi page pe jump karo
+  // Naya citation click -> usi page pe jump
   useEffect(() => {
     if (activePage?.page) {
       setPageNumber(activePage.page);
     }
   }, [activePage?.page, activePage?.nonce]);
+
+  // Page hamesha 1..numPages ke andar rakho (citation page range se bahar ho to bhi)
+  const currentPage =
+    numPages > 0
+      ? Math.min(Math.max(1, pageNumber), numPages)
+      : Math.max(1, pageNumber);
+
+  useEffect(() => {
+    setPageInput(String(currentPage));
+  }, [currentPage]);
 
   const highlightText = activePage?.highlightText;
 
@@ -75,8 +88,18 @@ export default function PdfPreview({
     };
   }, [highlightText]);
 
-  const goPrev = () => setPageNumber((p) => Math.max(1, p - 1));
-  const goNext = () => setPageNumber((p) => Math.min(numPages || p, p + 1));
+  const goPrev = () => setPageNumber(Math.max(1, currentPage - 1));
+  const goNext = () => setPageNumber(Math.min(numPages, currentPage + 1));
+
+  // Page number type karke Enter dabao -> seedha us page pe
+  const jumpToPage = () => {
+    const n = parseInt(pageInput, 10);
+    if (!Number.isNaN(n) && numPages > 0) {
+      setPageNumber(Math.min(Math.max(1, n), numPages));
+    } else {
+      setPageInput(String(currentPage));
+    }
+  };
 
   return (
     <div className="pdf-preview">
@@ -93,18 +116,41 @@ export default function PdfPreview({
         <div className="preview-page-controls">
           <button
             onClick={goPrev}
-            disabled={pageNumber <= 1}
+            disabled={currentPage <= 1}
             className="preview-btn"
             title="Previous page"
           >
             <ChevronLeft size={14} />
           </button>
+
           <span className="preview-page-indicator">
-            {pageNumber} / {numPages || "…"}
+            <input
+              value={pageInput}
+              onChange={(e) => setPageInput(e.target.value.replace(/\D/g, ""))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") jumpToPage();
+              }}
+              onBlur={jumpToPage}
+              inputMode="numeric"
+              aria-label="Go to page"
+              title="Type a page number and press Enter"
+              style={{
+                width: "2.4em",
+                textAlign: "center",
+                background: "transparent",
+                color: "inherit",
+                border: "none",
+                borderBottom: "1px solid currentColor",
+                font: "inherit",
+                outline: "none",
+              }}
+            />{" "}
+            / {numPages || "…"}
           </span>
+
           <button
             onClick={goNext}
-            disabled={pageNumber >= numPages}
+            disabled={numPages === 0 || currentPage >= numPages}
             className="preview-btn"
             title="Next page"
           >
@@ -152,12 +198,13 @@ export default function PdfPreview({
           <Document
             file={docSource}
             onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+            onLoadError={(err) => console.error("PDF load error:", err)}
             loading={<div className="pdf-loading">Loading PDF…</div>}
             error={<div className="pdf-loading">Failed to load PDF.</div>}
           >
             <Page
-              key={`${pageNumber}-${activePage?.nonce ?? "default"}`}
-              pageNumber={pageNumber}
+              key={`${currentPage}-${activePage?.nonce ?? "default"}`}
+              pageNumber={currentPage}
               scale={scale}
               customTextRenderer={customTextRenderer}
               renderAnnotationLayer={false}
