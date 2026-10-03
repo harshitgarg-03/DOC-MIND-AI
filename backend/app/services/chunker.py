@@ -8,15 +8,6 @@ HEADING_PATTERN = re.compile(
 )
 
 
-# def chunk_text(text: str) -> list[str]:
-#     splitter = RecursiveCharacterTextSplitter(
-#         chunk_size=1000,
-#         chunk_overlap=150,
-#         separators=["\n\n", "\n", ". ", " ", ""],
-#     )
-#     return splitter.split_text(text)
-
-
 def split_into_sections(page_text: str, current_title: str = "General"):
     """Ek page ke text ko (section_title, section_text) pairs mein todta hai."""
     lines = page_text.split("\n")
