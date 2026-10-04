@@ -8,7 +8,18 @@ import { deleteDocument, listDocuments, Upload_Pdf } from "@/services/pdf-api";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "./pdf-analyzer/header";
-import { FileText, FolderOpen, Plus, Trash2, ChevronLeft, ChevronRight, Layers, X, ShieldCheck, Check } from "lucide-react";
+import {
+  FileText,
+  FolderOpen,
+  Plus,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  Layers,
+  X,
+  ShieldCheck,
+  Check,
+} from "lucide-react";
 import UploadView from "./pdf-analyzer/upload_view";
 import AnalyzerView from "./analyzer_view";
 import type { ActivePage } from "@/types/pdf";
@@ -56,8 +67,14 @@ export default function PdfAnalyzer() {
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
   // Compare-mode mein PDF panel kaunsa selected document dikha raha hai
   const [previewDocId, setPreviewDocId] = useState<string | null>(null);
+  // Upload chal raha ho to ye file yahan rehti hai (loader dikhane ke liye)
+  const [uploadingFile, setUploadingFile] = useState<File | null>(null);
 
-  const handleCitationClick = (page: number, text?: string, documentId?: string) => {
+  const handleCitationClick = (
+    page: number,
+    text?: string,
+    documentId?: string,
+  ) => {
     // Compare-mode: citation jis document ki hai, preview usi pe switch karo
     if (compareMode && documentId && selectedDocumentIds.includes(documentId)) {
       setPreviewDocId(documentId);
@@ -92,7 +109,7 @@ export default function PdfAnalyzer() {
   const effectivePreviewId =
     previewDocId && selectedDocumentIds.includes(previewDocId)
       ? previewDocId
-      : selectedDocumentIds[0] ?? null;
+      : (selectedDocumentIds[0] ?? null);
   const previewDoc = documents.find((d) => d.documentId === effectivePreviewId);
 
   // Compare-mode ON hai to selected checkboxes wale documents, warna
@@ -149,6 +166,10 @@ export default function PdfAnalyzer() {
   }, [sessionLoading, session]);
 
   const handlePdfUpload = async (uploadedFile: File) => {
+    // Pehle se upload chal raha hai to dobara start mat karo
+    if (uploadingFile) return;
+
+    setUploadingFile(uploadedFile);
     try {
       const res = await Upload_Pdf(uploadedFile);
       handleFileSubmit(uploadedFile);
@@ -178,6 +199,8 @@ export default function PdfAnalyzer() {
         error.message || "Something went wrong while uploading the PDF.",
         "error",
       );
+    } finally {
+      setUploadingFile(null);
     }
   };
 
@@ -186,7 +209,9 @@ export default function PdfAnalyzer() {
       await deleteDocument(doc.documentId);
 
       setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
-      setSelectedDocumentIds((prev) => prev.filter((id) => id !== doc.documentId));
+      setSelectedDocumentIds((prev) =>
+        prev.filter((id) => id !== doc.documentId),
+      );
 
       if (activeDocumentId === doc.documentId) {
         removePdf();
@@ -209,7 +234,10 @@ export default function PdfAnalyzer() {
       router.refresh();
     } catch (error: any) {
       console.error("Logout failed:", error);
-      showToast(error.message || "Failed to log out. Please try again.", "error");
+      showToast(
+        error.message || "Failed to log out. Please try again.",
+        "error",
+      );
     }
   };
 
@@ -243,7 +271,9 @@ export default function PdfAnalyzer() {
           onClick={() => setSidebarOpen(false)}
         />
 
-        <aside className={`app-sidebar ${sidebarOpen ? "open" : ""} ${sidebarCollapsed ? "collapsed" : ""}`}>
+        <aside
+          className={`app-sidebar ${sidebarOpen ? "open" : ""} ${sidebarCollapsed ? "collapsed" : ""}`}
+        >
           <div className="sidebar-header">
             <h2 className="sidebar-title">
               <FolderOpen size={14} />
@@ -313,8 +343,12 @@ export default function PdfAnalyzer() {
                   key={doc.id}
                   className={`doc-item ${
                     compareMode
-                      ? selectedDocumentIds.includes(doc.documentId) ? "active" : ""
-                      : activeDocumentId === doc.documentId ? "active" : ""
+                      ? selectedDocumentIds.includes(doc.documentId)
+                        ? "active"
+                        : ""
+                      : activeDocumentId === doc.documentId
+                        ? "active"
+                        : ""
                   }`}
                   onClick={() => {
                     if (compareMode) {
@@ -333,7 +367,9 @@ export default function PdfAnalyzer() {
                     {compareMode && (
                       <span
                         className={`compare-check ${
-                          selectedDocumentIds.includes(doc.documentId) ? "checked" : ""
+                          selectedDocumentIds.includes(doc.documentId)
+                            ? "checked"
+                            : ""
                         }`}
                         style={
                           selectedDocumentIds.includes(doc.documentId)
@@ -345,9 +381,9 @@ export default function PdfAnalyzer() {
                         }
                         aria-hidden="true"
                       >
-                        {selectedDocumentIds.includes(doc.documentId) ? (
-                          getDocStyle(doc.documentId).letter
-                        ) : null}
+                        {selectedDocumentIds.includes(doc.documentId)
+                          ? getDocStyle(doc.documentId).letter
+                          : null}
                       </span>
                     )}
                     <FileText size={15} className="doc-item-icon" />
@@ -407,7 +443,9 @@ export default function PdfAnalyzer() {
                 </div>
                 <div className="compare-bar-chips">
                   {selectedDocumentIds.length === 0 && (
-                    <span className="compare-bar-empty">No PDFs selected yet</span>
+                    <span className="compare-bar-empty">
+                      No PDFs selected yet
+                    </span>
                   )}
                   {selectedDocumentIds.map((id) => {
                     const doc = documents.find((d) => d.documentId === id);
@@ -418,7 +456,9 @@ export default function PdfAnalyzer() {
                       <div
                         key={id}
                         className={`compare-chip ${isViewing ? "viewing" : ""}`}
-                        style={{ borderColor: isViewing ? st.color : undefined }}
+                        style={{
+                          borderColor: isViewing ? st.color : undefined,
+                        }}
                       >
                         <button
                           className="compare-chip-main"
@@ -428,7 +468,10 @@ export default function PdfAnalyzer() {
                           }}
                           title={`View ${doc.name}`}
                         >
-                          <span className="compare-chip-letter" style={{ background: st.color }}>
+                          <span
+                            className="compare-chip-letter"
+                            style={{ background: st.color }}
+                          >
                             {st.letter}
                           </span>
                           <span className="compare-chip-name">{doc.name}</span>
@@ -445,7 +488,10 @@ export default function PdfAnalyzer() {
                     );
                   })}
                 </div>
-                <button className="compare-bar-exit" onClick={toggleCompareMode}>
+                <button
+                  className="compare-bar-exit"
+                  onClick={toggleCompareMode}
+                >
                   <X size={12} />
                   <span>Exit</span>
                 </button>
@@ -453,9 +499,9 @@ export default function PdfAnalyzer() {
               <div className="compare-bar-note">
                 <ShieldCheck size={12} />
                 <span>
-                  Answers use <strong>only the selected PDFs</strong> — no outside
-                  knowledge. Click a chip to preview that PDF; source badges (A, B…)
-                  show which PDF each point came from.
+                  Answers use <strong>only the selected PDFs</strong> — no
+                  outside knowledge. Click a chip to preview that PDF; source
+                  badges (A, B…) show which PDF each point came from.
                 </span>
               </div>
             </div>
@@ -468,13 +514,21 @@ export default function PdfAnalyzer() {
                 </div>
                 <h2>Choose PDFs to compare</h2>
                 <p>
-                  Pick at least 2 documents. Then ask things like “which one is better
-                  for an AI/ML role?” or “what are the key differences?”
+                  Pick at least 2 documents. Then ask things like “which one is
+                  better for an AI/ML role?” or “what are the key differences?”
                 </p>
                 <div className="compare-picker-progress">
-                  <span className={selectedDocumentIds.length >= 1 ? "done" : ""}>1</span>
+                  <span
+                    className={selectedDocumentIds.length >= 1 ? "done" : ""}
+                  >
+                    1
+                  </span>
                   <i />
-                  <span className={selectedDocumentIds.length >= 2 ? "done" : ""}>2</span>
+                  <span
+                    className={selectedDocumentIds.length >= 2 ? "done" : ""}
+                  >
+                    2
+                  </span>
                   <em>{selectedDocumentIds.length}/2 selected</em>
                 </div>
               </div>
@@ -491,9 +545,17 @@ export default function PdfAnalyzer() {
                     >
                       <span
                         className="compare-card-badge"
-                        style={selected ? { background: st.color, borderColor: st.color } : undefined}
+                        style={
+                          selected
+                            ? { background: st.color, borderColor: st.color }
+                            : undefined
+                        }
                       >
-                        {selected ? st.letter : <Check size={12} style={{ opacity: 0 }} />}
+                        {selected ? (
+                          st.letter
+                        ) : (
+                          <Check size={12} style={{ opacity: 0 }} />
+                        )}
                       </span>
                       <FileText size={18} className="compare-card-icon" />
                       <span className="compare-card-name">{doc.name}</span>
@@ -510,13 +572,21 @@ export default function PdfAnalyzer() {
               urlLoading={urlLoading}
               onUrlChange={setUrlInput}
               onUrlSubmit={handleUrlSubmit}
+              isUploading={!!uploadingFile}
+              uploadingFile={
+                uploadingFile
+                  ? { name: uploadingFile.name, size: uploadingFile.size }
+                  : null
+              }
             />
           ) : (
             <div className="main-analyzer-slot">
               <AnalyzerView
                 file={compareMode ? null : file}
-                fileUrl={compareMode ? previewDoc?.url ?? "" : fileUrl}
-                pdfName={compareMode ? previewDoc?.name ?? null : fileName}
+                fileUrl={
+                  compareMode ? (previewDoc?.url ?? "") : (fileUrl ?? "")
+                }
+                pdfName={compareMode ? (previewDoc?.name ?? null) : fileName}
                 compareMode={compareMode}
                 messages={message}
                 query={query}

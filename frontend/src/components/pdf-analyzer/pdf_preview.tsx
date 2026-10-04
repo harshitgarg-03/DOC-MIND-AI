@@ -39,12 +39,6 @@ export default function PdfPreview({
 
   const docSource = useMemo(() => file ?? fileUrl, [file, fileUrl]);
 
-  // Sirf tab page 1 pe jao jab asli document source badle (compare-mode A <-> B).
-  // IMPORTANT: yahan numPages ko 0 mat karo. Agar fileUrl badle lekin `file`
-  // wahi rahe, to <Document> reload nahi hota, onLoadSuccess dobara nahi chalta,
-  // aur total pages hamesha "…" dikhta rehta hai (Next button bhi disabled).
-  // Ye effect activePage wale effect se PEHLE hai, taaki citation-click ka
-  // page-jump isko override kar sake.
   useEffect(() => {
     setPageNumber(1);
   }, [docSource]);
