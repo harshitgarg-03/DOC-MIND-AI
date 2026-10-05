@@ -7,7 +7,7 @@ import { formatFileSize } from "@/lib/utils";
 interface UploadLoaderProps {
   fileName: string;
   fileSize?: number;
-} 
+}  
 
 function formatElapsed(totalSeconds: number) {
   const m = Math.floor(totalSeconds / 60);
