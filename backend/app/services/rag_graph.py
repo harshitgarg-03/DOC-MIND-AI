@@ -1,11 +1,15 @@
+import logging
 import re
 from typing import TypedDict, Optional
+from google.genai import types
 from langgraph.graph import StateGraph, END
 
-from app.core.clients import collection
-from app.core.config import DISTANCE_THRESHOLD, MAX_CONTEXT_CHUNKS
+from app.core.clients import collection, genai_client
+from app.core.config import DISTANCE_THRESHOLD, MAX_CONTEXT_CHUNKS, CHAT_MODEL
 
 from app.services.qa_service import build_prompt
+
+logger = logging.getLogger(__name__)
 
 QUESTION_PATTERN = re.compile(r"(?:question|q)\.?\s*#?\s*(\d+)", re.IGNORECASE)
 
@@ -16,6 +20,7 @@ class RAGState(TypedDict, total=False):
     history: list[dict]
     doc_labels: dict[str, str]
     search_query: str
+    standalone_question: str
     chunks: list[str]
     metadata: list[dict]
     distances: list[float]
@@ -23,6 +28,46 @@ class RAGState(TypedDict, total=False):
     mode: str          # "single" ya "compare"
     prompt: str
     history_summary: str
+
+
+def rewrite_to_standalone(question: str, history: list[dict]) -> str:
+    """Follow-up ("What about by 2050?") ko ek poora standalone question me
+    badalta hai. Retrieval aur answer-cache dono isi ko use karte hain, taaki
+    (1) sahi chunks milein aur (2) alag conversations ke same-text follow-ups
+    ek doosre ka cached answer na uthayein. Koi history nahi ya LLM fail ho
+    to original question hi wapas aata hai."""
+    if not history:
+        return question
+
+    turns = []
+    for m in history[-4:]:
+        speaker = "User" if m.get("role") == "user" else "Assistant"
+        turns.append(f"{speaker}: {(m.get('text') or '')[:500]}")
+    convo = "\n".join(turns)
+
+    prompt = f"""Rewrite the user's latest message as ONE standalone question that can be understood without the conversation. Replace pronouns and references ("it", "that", "the second one", "what about 2050?") with what they refer to, using the conversation below. Keep every number, name and constraint. If the message is already standalone, return it unchanged. Output ONLY the question text, nothing else.
+
+Conversation:
+{convo}
+
+Latest message: {question}
+
+Standalone question:"""
+
+    try:
+        response = genai_client.models.generate_content(
+            model=CHAT_MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(temperature=0),
+        )
+        rewritten = (response.text or "").strip().strip('"').strip()
+        if 3 < len(rewritten) < 400:
+            logger.info(f"REWRITE | '{question}' -> '{rewritten}'")
+            return rewritten
+    except Exception:
+        logger.exception("Question rewrite failed — using the original question")
+
+    return question
 
 
 def retrieve_node(state: RAGState) -> RAGState:
@@ -36,11 +81,11 @@ def retrieve_node(state: RAGState) -> RAGState:
     history = state.get("history", [])
     mode = "compare" if len(document_ids) > 1 else "single"
 
-    search_query = question
-    if history:
-        last_turns = history[-4:]
-        context_snippet = " ".join(m.get("text", "") for m in last_turns if m.get("text"))
-        search_query = f"{context_snippet} {question}".strip()
+    # Purana tareeka: pichhle 4 messages ka poora text + question jod dete the.
+    # Chhote follow-up par embedding history ke topic ki taraf kheench jaati thi
+    # (galat chunks). Ab follow-up ko standalone question bana ke search karte hain.
+    standalone_question = rewrite_to_standalone(question, history)
+    search_query = standalone_question
 
     all_chunks, all_metadata, all_distances = [], [], []
 
