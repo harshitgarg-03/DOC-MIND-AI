@@ -1,130 +1,80 @@
 import math
-import random
-import threading
+import os
 import time
-from collections import deque
 
 from google import genai
-from google.genai import types
 import chromadb
-from chromadb.utils import embedding_functions
+from chromadb import Documents, EmbeddingFunction, Embeddings
+from fastembed import TextEmbedding
 
 from app.core.config import (
     GEMINI_API_KEY,
     CHROMA_PATH,
-    EMBEDDING_MODEL,
+    COLLECTION_NAME,
+    LOCAL_EMBEDDING_MODEL,
     EMBEDDING_CACHE_TTL,
 )
 from app.core.cache import cache_get, cache_set, embedding_cache_key
 
+# Gemini is still used for chat / answer generation only.
 genai_client = genai.Client(api_key=GEMINI_API_KEY)
 
-# Chroma still uses this for query-time embeddings (one string -> one vector).
-embedder = embedding_functions.GoogleGeminiEmbeddingFunction(
-    model_name=EMBEDDING_MODEL,
-    task_type="RETRIEVAL_DOCUMENT",
-)
+# ---------------------------------------------------------------------------
+# Local embeddings (fastembed / ONNX) — no API calls, no rate limit.
+# Model is downloaded once on first run and cached on disk.
+# ---------------------------------------------------------------------------
+print(f"🧠 Loading local embedding model: {LOCAL_EMBEDDING_MODEL}")
+# Ryzen 5 7520U = 4 physical cores / 8 threads. ONNX runs best with physical cores.
+EMBED_THREADS = int(os.getenv("EMBED_THREADS", "4"))
+_local_model = TextEmbedding(model_name=LOCAL_EMBEDDING_MODEL, threads=EMBED_THREADS)
+print(f"🧵 fastembed threads: {EMBED_THREADS}")
 
-EMBED_BATCH_SIZE = 30              # texts per Gemini request
-EMBED_TEXTS_PER_MINUTE = 90        # stay under the ~100 texts/min free-tier limit
-                                   # (raise this a lot if you enable billing)
-QUOTA_WAIT_SECONDS = 65            # fallback wait if a 429 still happens
-MAX_QUOTA_RETRIES = 3
-MAX_TRANSIENT_RETRIES = 4
-
-_sent: deque = deque()             # (timestamp, n_texts) sent in the last 60s
-_lock = threading.Lock()
+LOCAL_BATCH_SIZE = 32
 
 
-class EmbeddingShapeError(Exception):
-    """Gemini returned a different number of vectors than texts sent.
-    Deterministic, so it is never retried."""
+def _embed_documents(texts: list[str]) -> list[list[float]]:
+    """passage_embed adds the right document prefix for models that need it."""
+    return [v.tolist() for v in _local_model.passage_embed(texts, batch_size=LOCAL_BATCH_SIZE)]
 
 
-def _throttle(n_texts: int) -> None:
-    """Block until sending n_texts keeps us under EMBED_TEXTS_PER_MINUTE."""
-    while True:
-        with _lock:
-            now = time.time()
-            while _sent and now - _sent[0][0] >= 60:
-                _sent.popleft()
-
-            used = sum(count for _, count in _sent)
-
-            if used + n_texts <= EMBED_TEXTS_PER_MINUTE or not _sent:
-                _sent.append((now, n_texts))
-                return
-
-            wait = 60 - (now - _sent[0][0]) + 0.5
-
-        print(f"🚦 THROTTLE: {used}/{EMBED_TEXTS_PER_MINUTE} texts used this minute, waiting {wait:.0f}s")
-        time.sleep(max(wait, 0.5))
+def _embed_queries(texts: list[str]) -> list[list[float]]:
+    """query_embed adds the right query prefix for models that need it."""
+    return [v.tolist() for v in _local_model.query_embed(texts)]
 
 
-def _embed_batch(texts: list[str]) -> list[list[float]]:
-    # One Content per text so gemini-embedding-2 returns one vector per text.
-    contents = [types.Content(parts=[types.Part(text=t)]) for t in texts]
+class LocalEmbedder(EmbeddingFunction):
+    """Chroma calls this at QUERY time (collection.query(query_texts=[...]))."""
 
-    response = genai_client.models.embed_content(
-        model=EMBEDDING_MODEL,
-        contents=contents,
-        config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT"),
-    )
+    def __init__(self):
+        pass
 
-    vectors = [[float(x) for x in e.values] for e in response.embeddings]
+    def __call__(self, input: Documents) -> Embeddings:
+        return _embed_queries(list(input))
 
-    if len(vectors) != len(texts):
-        raise EmbeddingShapeError(
-            f"Gemini returned {len(vectors)} vectors for {len(texts)} texts "
-            f"(model={EMBEDDING_MODEL})."
-        )
-    return vectors
+    @staticmethod
+    def name() -> str:
+        return "local_fastembed"
+
+    def get_config(self) -> dict:
+        return {"model": LOCAL_EMBEDDING_MODEL}
+
+    @staticmethod
+    def build_from_config(config: dict) -> "LocalEmbedder":
+        return LocalEmbedder()
+
+    def default_space(self):
+        return "cosine"
+
+    def supported_spaces(self):
+        return ["cosine", "l2", "ip"]
 
 
-def _is_quota_error(e: Exception) -> bool:
-    msg = str(e)
-    return "429" in msg or "RESOURCE_EXHAUSTED" in msg
-
-
-def _embed_with_retry(texts: list[str]) -> list[list[float]]:
-    quota_retries = 0
-    transient_retries = 0
-
-    while True:
-        _throttle(len(texts))
-        try:
-            return _embed_batch(texts)
-
-        except EmbeddingShapeError:
-            raise
-
-        except Exception as e:
-            if _is_quota_error(e):
-                quota_retries += 1
-                if quota_retries > MAX_QUOTA_RETRIES:
-                    raise RuntimeError(
-                        "Gemini embedding quota exhausted. If this persists "
-                        "it is likely a daily limit: check "
-                        "https://ai.dev/rate-limit or enable billing. Already "
-                        "embedded chunks are cached, so re-uploading resumes."
-                    ) from e
-                print(f"⏳ QUOTA HIT (429) — waiting {QUOTA_WAIT_SECONDS}s "
-                      f"({quota_retries}/{MAX_QUOTA_RETRIES})")
-                time.sleep(QUOTA_WAIT_SECONDS)
-
-            else:
-                transient_retries += 1
-                if transient_retries > MAX_TRANSIENT_RETRIES:
-                    print(f"❌ EMBEDDING FAILED: {e}")
-                    raise
-                wait = (2 ** transient_retries) + random.uniform(0, 1)
-                print(f"⚠️ EMBEDDING RETRY {transient_retries}/"
-                      f"{MAX_TRANSIENT_RETRIES} in {wait:.1f}s → {e}")
-                time.sleep(wait)
+embedder = LocalEmbedder()
 
 
 def embed_texts_individually(texts: list[str]) -> list[list[float]]:
-    """Cache lookup -> de-duplicate -> throttled batches -> cache each batch."""
+    """Same signature as before so upload.py needs no change.
+    Redis cache lookup -> de-duplicate -> local embed -> cache."""
     total = len(texts)
     print(f"📄 Total chunks: {total}")
 
@@ -144,26 +94,30 @@ def embed_texts_individually(texts: list[str]) -> list[list[float]]:
             pending[key] = texts[i]
 
     pending_keys = list(pending.keys())
-    api_calls = math.ceil(len(pending_keys) / EMBED_BATCH_SIZE)
-    est_minutes = len(pending_keys) / EMBED_TEXTS_PER_MINUTE
-
     print(
         f"🟢 CACHE HIT: {cache_hits}/{total} | "
         f"🔴 CACHE MISS: {total - cache_hits} ({len(pending_keys)} unique) | "
-        f"📡 Gemini calls: {api_calls} | ⏱️ est. {est_minutes:.1f} min"
+        f"💻 local model: {LOCAL_EMBEDDING_MODEL}"
     )
 
     new_embeddings: dict[str, list[float]] = {}
+    t_start = time.time()
 
-    for call_no, start in enumerate(range(0, len(pending_keys), EMBED_BATCH_SIZE), 1):
-        batch_keys = pending_keys[start:start + EMBED_BATCH_SIZE]
-        batch_texts = [pending[k] for k in batch_keys]
+    # Embed in slices so we can print progress on big PDFs.
+    SLICE = 256
+    n_slices = math.ceil(len(pending_keys) / SLICE) if pending_keys else 0
+    for s_no, start in enumerate(range(0, len(pending_keys), SLICE), 1):
+        slice_keys = pending_keys[start:start + SLICE]
+        slice_texts = [pending[k] for k in slice_keys]
+        print(f"🔄 EMBEDDING {s_no}/{n_slices} ({len(slice_texts)} texts)")
 
-        print(f"🔄 EMBEDDING CALL {call_no}/{api_calls} ({len(batch_texts)} texts)")
+        vectors = _embed_documents(slice_texts)
+        if len(vectors) != len(slice_texts):
+            raise RuntimeError(
+                f"Embedder returned {len(vectors)} vectors for {len(slice_texts)} texts"
+            )
 
-        vectors = _embed_with_retry(batch_texts)
-
-        for key, vector in zip(batch_keys, vectors):
+        for key, vector in zip(slice_keys, vectors):
             new_embeddings[key] = vector
             cache_set(key, vector, EMBEDDING_CACHE_TTL)
 
@@ -171,13 +125,18 @@ def embed_texts_individually(texts: list[str]) -> list[list[float]]:
         if results[i] is None:
             results[i] = new_embeddings[key]
 
-    print(f"🎉 EMBEDDING COMPLETE: {len(results)}/{total}")
+    elapsed = time.time() - t_start
+    rate = len(pending_keys) / elapsed if elapsed > 0 else 0
+    print(f"🎉 EMBEDDING COMPLETE: {len(results)}/{total} | ⏱️ {elapsed:.1f}s ({rate:.0f} chunks/sec)")
     return results
 
 
 chroma_client = chromadb.PersistentClient(path=CHROMA_PATH)
 
+# New collection name on purpose: old Gemini vectors (different dimension)
+# live in "pdf_chunks" and cannot be mixed with the local model's vectors.
 collection = chroma_client.get_or_create_collection(
-    name="pdf_chunks",
+    name=COLLECTION_NAME,
     embedding_function=embedder,
+    configuration={"hnsw": {"space": "cosine"}},
 )

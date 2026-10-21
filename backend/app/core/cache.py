@@ -2,7 +2,7 @@ import redis
 import json
 import hashlib
 import logging
-from app.core.config import REDIS_URL
+from app.core.config import REDIS_URL, LOCAL_EMBEDDING_MODEL
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,9 @@ def cache_delete_pattern(pattern: str):
 # SPECIFIC CACHE KEY BUILDERS 
 
 def embedding_cache_key(text: str) -> str:
-    return f"emb:{_hash_key(text)}"
+    # Model name is part of the key so vectors from a different embedding
+    # model (e.g. old Gemini 3072-dim ones) are never reused.
+    return f"emb:{_hash_key(LOCAL_EMBEDDING_MODEL, text)}"
 
 def answer_cache_key(document_ids: list[str], question: str, mode: str = "single") -> str:
     """
