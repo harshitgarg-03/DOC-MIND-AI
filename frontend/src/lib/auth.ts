@@ -1,6 +1,6 @@
 import { betterAuth } from "better-auth/minimal";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { prisma } from "@/lib/prisma"; // your prisma client instance
+import { prisma } from "@/lib/prisma";
 import { jwt } from "better-auth/plugins";
 
 export const auth = betterAuth({
@@ -9,35 +9,43 @@ export const auth = betterAuth({
   }),
 
   account: {
-		accountLinking: {
-			enabled: true,
-			// Only auto-link for providers that verify emails
-			trustedProviders: ["google", "github", "microsoft"],
-			// If you want stricter control:
-			// disableImplicitLinking: true,
-		}
-	},
-	// Additional protection: require email verification for auto-linking
-	emailVerification: {
-		requireEmailVerification: true, // Optional extra safety
-		sendVerificationEmail: async ({ user, url }) => {
-			// Your email sending logic
-		},
-	},
+    accountLinking: {
+      enabled: true,
+      trustedProviders: ["google", "github"],
+      // requireLocalEmailVerified ko CHHEDNA MAT (default: true).
+      // Isi ki wajah se sirf verified email wale local account par Google/GitHub
+      // auto-link hota hai, aur "account pre-hijacking" attack rukta hai.
+    },
+  },
 
   emailAndPassword: {
     enabled: true,
+    requireEmailVerification: true,
   },
+
+  // requireEmailVerification: true hai, to verification link bhejne wala function zaroori hai.
+  emailVerification: {
+    sendOnSignUp: true,
+    sendOnSignIn: true,              // unverified user login try kare to naya link bhejo
+    autoSignInAfterVerification: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      // DEV: link terminal me print hota hai, use browser me kholo.
+      // PRODUCTION: yahan Resend / Nodemailer / SES se asli email bhejo.
+      console.log(`\n📧 VERIFY EMAIL for ${user.email}\n${url}\n`);
+    },
+  },
+
   socialProviders: {
     google: {
+      clientId: process.env.GOOGLE_OAUTH_ID!,
+      clientSecret: process.env.GOOGLE_OAUTH_SECRET!,
       prompt: "select_account",
-      clientId: process.env.GOOGLE_OAUTH_ID as string,
-      clientSecret: process.env.GOOGLE_OAUTH_SECRET as string,
     },
+
     github: {
-      clientId: process.env.GITHUB_OAUTH_ID as string,
-      clientSecret: process.env.GITHUB_OAUTH_SECRET as string,
-    }, 
+      clientId: process.env.GITHUB_OAUTH_ID!,
+      clientSecret: process.env.GITHUB_OAUTH_SECRET!,
+    },
   },
 
   plugins: [jwt()],
