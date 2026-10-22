@@ -1,10 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import PdfPreview from "./pdf-analyzer/pdf_preview";
+// import PdfPreview from "./pdf-analyzer/pdf_preview";
 import ChatPanel from "./chat/chat_panel";
 import type { analyzerProps } from "@/types/pdf";
 
+import dynamic from "next/dynamic";
+
+const PdfPreview = dynamic(
+  () => import("./pdf-analyzer/pdf_preview"),
+  {
+    ssr: false,
+    loading: () => <p>Loading PDF viewer...</p>,
+  }
+);
 const MIN_PCT = 28;
 const MAX_PCT = 74;
 const STORAGE_KEY = "analyzer-split-ratio";
