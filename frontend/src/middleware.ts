@@ -2,18 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
 
 export async function middleware(request: NextRequest) {
-  const sessionCookie = getSessionCookie(request);   // sirf cookie check karta hai, DB call nahi (fast, edge-safe)
-  const { pathname } = request.nextUrl;
+  const sessionCookie = getSessionCookie(request);   
+  const { pathname, searchParams } = request.nextUrl;
 
   const isAuthPage = pathname === "/login" || pathname === "/signup";
 
-  // Login/signup nahi hai session — protected page pe jaane se roko
+  const sessionExpired = searchParams.has("expired");
+
   if (!sessionCookie && !isAuthPage) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Already logged in hai — login/signup page pe dobara jaane se roko
-  if (sessionCookie && isAuthPage) {
+  if (sessionCookie && isAuthPage && !sessionExpired) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
