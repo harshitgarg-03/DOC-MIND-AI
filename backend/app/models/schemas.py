@@ -8,6 +8,7 @@ class UploadResponse(BaseModel):
     characters_extracted: int
     total_pdf_chunks: int
     total_pages: int
+    file_size: int = 0
 
 
 class DebugChunk(BaseModel):
