@@ -4,7 +4,6 @@ import { usePdf } from "@/hooks/usePdf";
 import { useTheme } from "@/hooks/useTheme";
 import { useToast } from "@/hooks/useToast";
 import { authClient } from "@/lib/auth-client";
-import { deleteDocument, listDocuments, Upload_Pdf } from "@/services/pdf-api";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "./pdf-analyzer/header";
@@ -24,7 +23,13 @@ import UploadView from "./pdf-analyzer/upload_view";
 import AnalyzerView from "./analyzer_view";
 import type { ActivePage } from "@/types/pdf";
 import { getDocStyle, registerDocs } from "@/lib/doc-colors";
-// import { authClient } from "@/lib/auth-client";
+import {
+  deleteDocument,
+  listDocuments,
+  Upload_Pdf,
+  Upload_Pdf_From_Url,
+} from "../services/pdf-api";
+import { isValidPdfUrl } from "@/lib/utils";
 
 interface DocumentItem {
   id: string;
@@ -48,9 +53,10 @@ export default function PdfAnalyzer() {
     UrlInput,
     setUrlInput,
     UrlError,
+    setUrlError,
     urlLoading,
+    setUrlLoading,
     handleFileSubmit,
-    handleUrlSubmit,
     removePdf,
     setFileUrl,
     setFileName,
@@ -201,6 +207,70 @@ export default function PdfAnalyzer() {
       );
     } finally {
       setUploadingFile(null);
+    }
+  };
+
+  const nameFromUrl = (url: string) => {
+    try {
+      return (
+        decodeURIComponent(new URL(url).pathname.split("/").pop() || "") ||
+        "Remote PDF"
+      );
+    } catch {
+      return "Remote PDF";
+    }
+  };
+
+  const handleUrlAnalyze = async () => {
+    const url = UrlInput.trim();
+    if (!url || urlLoading || uploadingFile) return;
+
+    if (!isValidPdfUrl(url)) {
+      setUrlError("Please enter a valid PDF link!");
+      return;
+    }
+
+    setUrlLoading(true);
+    setUrlError("");
+
+    try {
+      // Server downloads + indexes it, exactly like a normal upload
+      const res = await Upload_Pdf_From_Url(url);
+
+      // Preview from OUR backend copy -> no CORS problems with remote sites
+      const localUrl = `${API_URL}/files/${res.document_id}.pdf`;
+
+      setFile(null);
+      setFileUrl(localUrl);
+      setFileName(res.filename);
+      setUrlInput("");
+
+      registerDocs([res.document_id]);
+      setActiveDocumentId(res.document_id); // <- this is what enables chat
+      setActivePage(null);
+
+      setDocuments((prev) => {
+        if (prev.some((d) => d.documentId === res.document_id)) return prev;
+        return [
+          {
+            id: crypto.randomUUID(),
+            documentId: res.document_id,
+            name: res.filename,
+            size: res.file_size ?? 0,
+            url: localUrl,
+          },
+          ...prev,
+        ];
+      });
+
+      showToast(`"${res.filename}" is ready to chat`, "success");
+    } catch (error: any) {
+      console.error("PDF link upload failed:", error);
+      const msg = error.message || "Could not analyze this link.";
+      setUrlError(msg);
+      showToast(msg, "error");
+    } finally {
+      setUrlLoading(false);
     }
   };
 
@@ -571,12 +641,14 @@ export default function PdfAnalyzer() {
               urlError={UrlError}
               urlLoading={urlLoading}
               onUrlChange={setUrlInput}
-              onUrlSubmit={handleUrlSubmit}
-              isUploading={!!uploadingFile}
+              onUrlSubmit={handleUrlAnalyze}
+              isUploading={!!uploadingFile || urlLoading}
               uploadingFile={
                 uploadingFile
                   ? { name: uploadingFile.name, size: uploadingFile.size }
-                  : null
+                  : urlLoading
+                    ? { name: nameFromUrl(UrlInput.trim()), size: 0 }
+                    : null
               }
             />
           ) : (

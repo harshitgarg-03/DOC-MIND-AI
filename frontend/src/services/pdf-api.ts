@@ -185,3 +185,23 @@ export async function listDocuments() {
     throw e;
   }
 }
+
+
+export async function Upload_Pdf_From_Url(url: string) {
+  const formdata = new FormData();
+  formdata.append("url", url);
+
+  const response = await authedFetch(`${API_URL}/upload-url`, {
+    method: "POST",
+    body: formdata,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(
+      errorData?.detail || "Failed to fetch the PDF from this link. Please try again.",
+    );
+  }
+
+  return response.json();
+}

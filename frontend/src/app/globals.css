@@ -10,7 +10,7 @@
   --surface-raised: rgba(255, 255, 255, 0.9);
   --surface-solid: #ffffff;
 
-  --border: rgba(9, 14, 26, 0.05);
+  --border: rgba(9, 14, 26, 0.12);
   --border-active: rgba(255, 108, 62, 0.3);
   --muted: #627288;
 
@@ -2040,7 +2040,11 @@ mark.pdf-highlight {
   }
 }
 
-:root {
+
+
+
+/* Auth pages only: scoped so these dark values don't leak into the app theme */
+.auth-page {
   --bg: #080b10;
   --panel: #0d1118;
   --input: #111720;
@@ -2054,14 +2058,7 @@ mark.pdf-highlight {
 
   --border: #252d38;
   --border-hover: #3a4452;
-}
 
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
   background: var(--bg);
   color: var(--text);
   font-family:
@@ -3039,4 +3036,14 @@ body {
     width: 100%;
     opacity: 0.5;
   }
+}
+
+
+
+/* Readable toasts in light mode */
+:root:not(.dark) .toast-error {
+  color: #b91c1c;
+}
+:root:not(.dark) .toast-success {
+  color: #15803d;
 }
